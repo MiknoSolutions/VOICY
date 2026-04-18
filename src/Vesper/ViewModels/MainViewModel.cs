@@ -164,6 +164,7 @@ public class MainViewModel : ViewModelBase, IDisposable
     public void Start()
     {
         _hotkey.Start();
+        _audio.PrewarmMicrophone();
         if (CurrentMode == RecognitionMode.Continuous)
             StartContinuousMode();
         else if (CurrentMode == RecognitionMode.Streaming)

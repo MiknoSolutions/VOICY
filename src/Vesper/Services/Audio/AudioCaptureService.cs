@@ -10,6 +10,8 @@ public sealed class AudioCaptureService : IAudioCaptureService
     private WaveFileWriter? _writer;
     private int _deviceIndex;
     private readonly object _lock = new();
+    private bool _isRecording;
+    private bool _isPrewarmed;
 
     private const int SampleRate = 16000;
     private const int Channels = 1;
@@ -17,7 +19,19 @@ public sealed class AudioCaptureService : IAudioCaptureService
 
     public event EventHandler<float[]>? DataAvailable;
 
-    public void SetDevice(int deviceIndex) => _deviceIndex = deviceIndex;
+    public void SetDevice(int deviceIndex)
+    {
+        if (_deviceIndex != deviceIndex)
+        {
+            _deviceIndex = deviceIndex;
+            // Re-prewarm with new device
+            if (_isPrewarmed)
+            {
+                StopMicrophone();
+                PrewarmMicrophone();
+            }
+        }
+    }
 
     public List<string> GetAvailableDevices()
     {
@@ -30,16 +44,16 @@ public sealed class AudioCaptureService : IAudioCaptureService
         return devices;
     }
 
-    public void StartRecording()
+    /// <summary>
+    /// Keep the microphone device open and listening so StartRecording has zero latency.
+    /// </summary>
+    public void PrewarmMicrophone()
     {
         lock (_lock)
         {
-            StopInternal();
+            if (_isPrewarmed) return;
 
-            _buffer = new MemoryStream();
             var format = new WaveFormat(SampleRate, BitsPerSample, Channels);
-            _writer = new WaveFileWriter(_buffer, format);
-
             _waveIn = new WaveInEvent
             {
                 WaveFormat = format,
@@ -49,6 +63,49 @@ public sealed class AudioCaptureService : IAudioCaptureService
 
             _waveIn.DataAvailable += OnDataAvailable;
             _waveIn.StartRecording();
+            _isPrewarmed = true;
+        }
+    }
+
+    private void StopMicrophone()
+    {
+        lock (_lock)
+        {
+            if (_waveIn != null)
+            {
+                _waveIn.StopRecording();
+                _waveIn.DataAvailable -= OnDataAvailable;
+                _waveIn.Dispose();
+                _waveIn = null;
+            }
+            _isPrewarmed = false;
+        }
+    }
+
+    public void StartRecording()
+    {
+        lock (_lock)
+        {
+            // Ensure microphone is running
+            if (!_isPrewarmed)
+            {
+                var format = new WaveFormat(SampleRate, BitsPerSample, Channels);
+                _waveIn = new WaveInEvent
+                {
+                    WaveFormat = format,
+                    DeviceNumber = _deviceIndex,
+                    BufferMilliseconds = 100
+                };
+                _waveIn.DataAvailable += OnDataAvailable;
+                _waveIn.StartRecording();
+                _isPrewarmed = true;
+            }
+
+            // Start capturing to buffer
+            _buffer = new MemoryStream();
+            var fmt = new WaveFormat(SampleRate, BitsPerSample, Channels);
+            _writer = new WaveFileWriter(_buffer, fmt);
+            _isRecording = true;
         }
     }
 
@@ -56,17 +113,12 @@ public sealed class AudioCaptureService : IAudioCaptureService
     {
         lock (_lock)
         {
-            if (_waveIn == null || _buffer == null || _writer == null)
+            if (_buffer == null || _writer == null)
                 return [];
 
-            _waveIn.StopRecording();
-            _waveIn.DataAvailable -= OnDataAvailable;
-            _waveIn.Dispose();
-            _waveIn = null;
+            _isRecording = false;
 
             _writer.Flush();
-            // WaveFileWriter writes header on flush; we need to finalize it
-            var position = _buffer.Position;
             _writer.Dispose();
             _writer = null;
 
@@ -105,10 +157,11 @@ public sealed class AudioCaptureService : IAudioCaptureService
     {
         lock (_lock)
         {
-            _writer?.Write(e.Buffer, 0, e.BytesRecorded);
+            if (_isRecording)
+                _writer?.Write(e.Buffer, 0, e.BytesRecorded);
         }
 
-        // Convert PCM16 to float32 for VAD consumers
+        // Convert PCM16 to float32 for VAD / streaming consumers
         int sampleCount = e.BytesRecorded / 2;
         var floatSamples = new float[sampleCount];
         for (int i = 0; i < sampleCount; i++)
@@ -122,17 +175,12 @@ public sealed class AudioCaptureService : IAudioCaptureService
 
     private void StopInternal()
     {
-        if (_waveIn != null)
-        {
-            _waveIn.StopRecording();
-            _waveIn.DataAvailable -= OnDataAvailable;
-            _waveIn.Dispose();
-            _waveIn = null;
-        }
+        _isRecording = false;
         _writer?.Dispose();
         _writer = null;
         _buffer?.Dispose();
         _buffer = null;
+        StopMicrophone();
     }
 
     public void Dispose() => StopInternal();
