@@ -18,6 +18,17 @@ public sealed class SherpaOnnxService : ISpeechRecognitionService
             return;
 
         _recognizer?.Dispose();
+        _recognizer = null;
+        _loadedModelId = null;
+
+        // Validate all model files exist before calling native code
+        foreach (var file in model.Files)
+        {
+            var path = model.GetFilePath(file.RelativePath);
+            if (!File.Exists(path))
+                throw new FileNotFoundException(
+                    $"Model file missing: {file.RelativePath}. Please re-download the model.", path);
+        }
 
         var config = new OfflineRecognizerConfig();
         config.ModelConfig.Tokens = Path.Combine(model.ModelDirectory, "tokens.txt");
@@ -37,9 +48,26 @@ public sealed class SherpaOnnxService : ISpeechRecognitionService
                 config.ModelConfig.SenseVoice.Model = Path.Combine(model.ModelDirectory, "model.int8.onnx");
                 config.ModelConfig.SenseVoice.UseInverseTextNormalization = 1;
                 break;
+
+            default:
+                throw new InvalidOperationException(
+                    $"Unknown SherpaOnnx model type for '{model.DisplayName}'. SherpaType is not set.");
         }
 
-        _recognizer = new OfflineRecognizer(config);
+        try
+        {
+            _recognizer = new OfflineRecognizer(config);
+        }
+        catch (Exception ex)
+        {
+            _recognizer = null;
+            _loadedModelId = null;
+            throw new InvalidOperationException(
+                $"Failed to load SherpaOnnx model '{model.DisplayName}'. " +
+                $"Ensure the model files are complete and VC++ Redistributable is installed. " +
+                $"Details: {ex.Message}", ex);
+        }
+
         _loadedModelId = model.Id;
     }
 

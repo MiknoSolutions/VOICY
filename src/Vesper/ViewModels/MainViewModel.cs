@@ -191,7 +191,15 @@ public class MainViewModel : ViewModelBase, IDisposable
 
             if (settingsWindow.ShowDialog() == true)
             {
-                ReloadSettings();
+                try
+                {
+                    ReloadSettings();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Settings saved, but failed to apply:\n{ex.Message}",
+                        "VESPER — Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
             }
         }
         catch (Exception ex)
@@ -505,14 +513,32 @@ public class MainViewModel : ViewModelBase, IDisposable
             if (model != null && model.Engine == ModelEngine.SherpaOnnx)
             {
                 if (model.IsDownloaded())
-                    _sherpaOnnx.LoadModel(model);
+                {
+                    try
+                    {
+                        _sherpaOnnx.LoadModel(model);
+                    }
+                    catch (Exception ex)
+                    {
+                        StatusText = $"Failed to load model: {ex.Message}";
+                    }
+                }
                 else
                     StatusText = $"Model '{model.DisplayName}' not downloaded — open Settings to download";
             }
             else if (model != null && model.Engine == ModelEngine.WhisperNet)
             {
                 if (System.IO.File.Exists(_settings.ModelFilePath))
-                    _localWhisper.LoadModel(_settings.ModelFilePath);
+                {
+                    try
+                    {
+                        _localWhisper.LoadModel(_settings.ModelFilePath);
+                    }
+                    catch (Exception ex)
+                    {
+                        StatusText = $"Failed to load model: {ex.Message}";
+                    }
+                }
                 else
                     StatusText = $"Model '{model.DisplayName}' not downloaded — open Settings to download";
             }

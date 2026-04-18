@@ -16,9 +16,26 @@ public sealed class LocalWhisperService : ISpeechRecognitionService
         if (_loadedModelPath == modelPath && _factory != null)
             return;
 
+        if (!File.Exists(modelPath))
+            throw new FileNotFoundException(
+                $"Model file not found: {modelPath}. Please re-download the model.", modelPath);
+
         _factory?.Dispose();
-        _factory = WhisperFactory.FromPath(modelPath);
-        _loadedModelPath = modelPath;
+        _factory = null;
+        _loadedModelPath = null;
+
+        try
+        {
+            _factory = WhisperFactory.FromPath(modelPath);
+            _loadedModelPath = modelPath;
+        }
+        catch (Exception ex)
+        {
+            _factory = null;
+            throw new InvalidOperationException(
+                $"Failed to load Whisper model from '{Path.GetFileName(modelPath)}'. " +
+                $"The file may be corrupted — try re-downloading. Details: {ex.Message}", ex);
+        }
     }
 
     public async Task<string> TranscribeAsync(byte[] wavAudio, string language, CancellationToken ct = default)

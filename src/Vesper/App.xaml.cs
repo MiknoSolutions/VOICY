@@ -25,10 +25,52 @@ public partial class App : Application
         ConfigureServices(services);
         _serviceProvider = services.BuildServiceProvider();
 
-        var mainVm = _serviceProvider.GetRequiredService<MainViewModel>();
-        var mainWindow = new MainWindow(mainVm);
-        MainWindow = mainWindow;
-        mainWindow.Show();
+        try
+        {
+            var mainVm = _serviceProvider.GetRequiredService<MainViewModel>();
+            var mainWindow = new MainWindow(mainVm);
+            MainWindow = mainWindow;
+            mainWindow.Show();
+        }
+        catch (Exception ex)
+        {
+            // Unwrap DI/reflection wrappers to show the real cause
+            var inner = ex;
+            while (inner.InnerException != null) inner = inner.InnerException;
+
+            MessageBox.Show(
+                $"Failed to start VESPER:\n\n{inner.Message}\n\nThe application will start with default settings.",
+                "VESPER — Startup Error",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+
+            // Reset settings to defaults and retry
+            try
+            {
+                var settingsService = _serviceProvider.GetRequiredService<ISettingsService>();
+                settingsService.Save(new Models.AppSettings());
+
+                // Rebuild services with clean settings
+                _serviceProvider.Dispose();
+                services = new ServiceCollection();
+                ConfigureServices(services);
+                _serviceProvider = services.BuildServiceProvider();
+
+                var mainVm = _serviceProvider.GetRequiredService<MainViewModel>();
+                var mainWindow = new MainWindow(mainVm);
+                MainWindow = mainWindow;
+                mainWindow.Show();
+            }
+            catch (Exception ex2)
+            {
+                MessageBox.Show(
+                    $"VESPER cannot start:\n\n{ex2.Message}",
+                    "VESPER — Fatal Error",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+                Shutdown(1);
+            }
+        }
     }
 
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
