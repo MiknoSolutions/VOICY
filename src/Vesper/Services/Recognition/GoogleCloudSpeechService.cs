@@ -73,7 +73,7 @@ public sealed class GoogleCloudSpeechService : ISpeechRecognitionService
             Model = _model
         };
 
-        config.LanguageCodes.Add(MapLanguageCode(language));
+        config.LanguageCodes.AddRange(GetLanguageCodes(language));
 
         var request = new RecognizeRequest
         {
@@ -94,7 +94,7 @@ public sealed class GoogleCloudSpeechService : ISpeechRecognitionService
         catch (Exception ex)
         {
             DiagnosticLogger.Log($"GoogleCloud TranscribeAsync error: {ex.Message}");
-            DiagnosticLogger.Log($"  Recognizer: {RecognizerName}, Model: {_model}, Lang: {MapLanguageCode(language)}");
+            DiagnosticLogger.Log($"  Recognizer: {RecognizerName}, Model: {_model}, Langs: {string.Join(",", GetLanguageCodes(language))}");
             throw;
         }
     }
@@ -112,24 +112,24 @@ public sealed class GoogleCloudSpeechService : ISpeechRecognitionService
         _activeStream = _client.StreamingRecognize();
         _audioChannel = Channel.CreateUnbounded<byte[]>();
 
-        var langCode = MapLanguageCode(language);
+        var streamingRecogConfig = new RecognitionConfig
+        {
+            ExplicitDecodingConfig = new ExplicitDecodingConfig
+            {
+                Encoding = ExplicitDecodingConfig.Types.AudioEncoding.Linear16,
+                SampleRateHertz = 16000,
+                AudioChannelCount = 1
+            },
+            Model = _model
+        };
+        streamingRecogConfig.LanguageCodes.AddRange(GetLanguageCodes(language));
 
         await _activeStream.WriteAsync(new StreamingRecognizeRequest
         {
             Recognizer = RecognizerName,
             StreamingConfig = new StreamingRecognitionConfig
             {
-                Config = new RecognitionConfig
-                {
-                    ExplicitDecodingConfig = new ExplicitDecodingConfig
-                    {
-                        Encoding = ExplicitDecodingConfig.Types.AudioEncoding.Linear16,
-                        SampleRateHertz = 16000,
-                        AudioChannelCount = 1
-                    },
-                    LanguageCodes = { langCode },
-                    Model = _model
-                },
+                Config = streamingRecogConfig,
                 StreamingFeatures = new StreamingRecognitionFeatures
                 {
                     InterimResults = true
@@ -239,10 +239,16 @@ public sealed class GoogleCloudSpeechService : ISpeechRecognitionService
 
     // ── Helpers ─────────────────────────────────────────────────────
 
-    private static string MapLanguageCode(string? lang)
+    private static string[] GetLanguageCodes(string? lang)
     {
-        if (string.IsNullOrEmpty(lang) || lang == "auto") return "en-US";
+        if (string.IsNullOrEmpty(lang) || lang == "auto")
+            return ["en-US", "pl-PL"];
 
+        return [MapLanguageCode(lang)];
+    }
+
+    private static string MapLanguageCode(string lang)
+    {
         return lang switch
         {
             "en" => "en-US",
