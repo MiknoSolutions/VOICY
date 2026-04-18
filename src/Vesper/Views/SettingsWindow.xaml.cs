@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Input;
+using Microsoft.Win32;
 using Vesper.ViewModels;
 
 namespace Vesper.Views;
@@ -51,5 +52,31 @@ public partial class SettingsWindow : Window
     private void Cancel_Click(object sender, RoutedEventArgs e)
     {
         DialogResult = false;
+    }
+
+    private void BrowseGoogleCredentials_Click(object sender, RoutedEventArgs e)
+    {
+        var dlg = new OpenFileDialog
+        {
+            Title = "Select Google Cloud Service Account JSON",
+            Filter = "JSON files (*.json)|*.json|All files (*.*)|*.*",
+            CheckFileExists = true
+        };
+
+        if (dlg.ShowDialog(this) == true)
+        {
+            try
+            {
+                var safePath = ViewModel.ImportCredentialsFile(dlg.FileName);
+                MessageBox.Show(
+                    $"Credentials imported to:\n{safePath}\n\nThe original file can be safely deleted.",
+                    "Vesper", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Failed to import credentials:\n{ex.Message}",
+                    "Vesper — Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
     }
 }

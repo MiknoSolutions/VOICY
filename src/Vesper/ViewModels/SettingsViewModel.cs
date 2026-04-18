@@ -231,6 +231,25 @@ public class SettingsViewModel : ViewModelBase
         set => SetProperty(ref _googleCloudModel, value);
     }
 
+    private static string GoogleCloudCredentialsDir =>
+        System.IO.Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "Vesper");
+
+    public string ImportCredentialsFile(string sourcePath)
+    {
+        var dir = GoogleCloudCredentialsDir;
+        System.IO.Directory.CreateDirectory(dir);
+
+        var dest = System.IO.Path.Combine(dir, "google-credentials.json");
+        System.IO.File.Copy(sourcePath, dest, overwrite: true);
+
+        GoogleCloudCredentialsPath = dest;
+        return dest;
+    }
+        set => SetProperty(ref _googleCloudModel, value);
+    }
+
     // Collections
     public ObservableCollection<ModelDefinition> AvailableModels { get; }
     public ObservableCollection<string> AvailableDevices { get; }

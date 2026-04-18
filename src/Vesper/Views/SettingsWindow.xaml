@@ -83,17 +83,24 @@
                         <!-- Google Cloud config (visible only for GoogleCloud mode) -->
                         <StackPanel Visibility="{Binding IsGoogleCloudMode, Converter={StaticResource BoolToVis}}"
                                     Margin="0,6,0,0">
-                            <TextBlock Text="Service Account JSON path:" Margin="0,0,0,2"/>
-                            <TextBox Text="{Binding GoogleCloudCredentialsPath, UpdateSourceTrigger=PropertyChanged}"
-                                     Margin="0,0,0,6"/>
-                            <TextBlock Text="Model:" Margin="0,0,0,2"/>
+                            <TextBlock Text="Service Account JSON:" Margin="0,0,0,2"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox Grid.Column="0" Text="{Binding GoogleCloudCredentialsPath, Mode=OneWay}"
+                                         IsReadOnly="True" Margin="0,0,8,0"/>
+                                <Button Grid.Column="1" Content="Browse..." Click="BrowseGoogleCredentials_Click" Width="80"/>
+                            </Grid>
+                            <TextBlock Text="Model:" Margin="0,6,0,2"/>
                             <ComboBox SelectedValue="{Binding GoogleCloudModel}" SelectedValuePath="Tag" Margin="0,0,0,4">
                                 <ComboBoxItem Content="Chirp 2 (best quality)" Tag="chirp_2" IsSelected="True"/>
                                 <ComboBoxItem Content="Chirp (legacy)" Tag="chirp"/>
                                 <ComboBoxItem Content="Latest Short" Tag="latest_short"/>
                                 <ComboBoxItem Content="Latest Long" Tag="latest_long"/>
                             </ComboBox>
-                            <TextBlock Text="Requires a Google Cloud project with Speech-to-Text API enabled.&#x0a;Provide the path to a service account JSON key file.&#x0a;Project ID is read from the credentials file automatically."
+                            <TextBlock Text="Requires a Google Cloud project with Speech-to-Text API enabled.&#x0a;The key file is copied to a secure location in AppData automatically."
                                        FontSize="11" Foreground="Gray" TextWrapping="Wrap" Margin="0,2,0,0"/>
                         </StackPanel>
                     </StackPanel>
