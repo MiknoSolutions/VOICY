@@ -4,5 +4,6 @@ public enum WhisperBackend
 {
     Local,
     Api,
-    LocalApi
+    LocalApi,
+    GoogleCloud
 }

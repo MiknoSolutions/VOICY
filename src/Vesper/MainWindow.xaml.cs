@@ -27,7 +27,7 @@ public partial class MainWindow : Window
         try
         {
             _trayIcon = new TaskbarIcon();
-            _trayIcon.ToolTipText = "VESPER";
+            _trayIcon.ToolTipText = "Vesper";
 
             // Try loading icon from embedded resource, fall back to system icon
             try

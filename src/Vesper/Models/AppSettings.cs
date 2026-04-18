@@ -15,6 +15,10 @@ public class AppSettings
     public string LocalApiUrl { get; set; } = "http://localhost:8000";
     public string LocalApiModelName { get; set; } = string.Empty;
 
+    // Google Cloud Speech-to-Text
+    public string GoogleCloudCredentialsPath { get; set; } = string.Empty;
+    public string GoogleCloudModel { get; set; } = "chirp_2";
+
     // Hotkey for Toggle / PushToTalk modes
     public int HotkeyModifiers { get; set; } = 0x02 | 0x04; // Ctrl + Shift
     public int HotkeyKey { get; set; } = 0x52; // R key

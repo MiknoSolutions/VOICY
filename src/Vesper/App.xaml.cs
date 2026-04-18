@@ -43,8 +43,8 @@ public partial class App : Application
             while (inner.InnerException != null) inner = inner.InnerException;
 
             MessageBox.Show(
-                $"Failed to start VESPER:\n\n{inner.Message}\n\nThe application will start with default settings.",
-                "VESPER — Startup Error",
+                $"Failed to start Vesper:\n\n{inner.Message}\n\nThe application will start with default settings.",
+                "Vesper — Startup Error",
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
 
@@ -68,8 +68,8 @@ public partial class App : Application
             catch (Exception ex2)
             {
                 MessageBox.Show(
-                    $"VESPER cannot start:\n\n{ex2.Message}",
-                    "VESPER — Fatal Error",
+                    $"Vesper cannot start:\n\n{ex2.Message}",
+                    "Vesper — Fatal Error",
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);
                 Shutdown(1);
@@ -82,7 +82,7 @@ public partial class App : Application
         e.Handled = true;
         MessageBox.Show(
             $"An unexpected error occurred:\n\n{e.Exception.Message}\n\n{e.Exception.StackTrace}",
-            "VESPER — Error",
+            "Vesper — Error",
             MessageBoxButton.OK,
             MessageBoxImage.Error);
     }
@@ -93,7 +93,7 @@ public partial class App : Application
         {
             MessageBox.Show(
                 $"A fatal error occurred:\n\n{ex.Message}",
-                "VESPER — Fatal Error",
+                "Vesper — Fatal Error",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
         }
@@ -112,6 +112,7 @@ public partial class App : Application
         services.AddSingleton<OpenAiWhisperService>();
         services.AddSingleton<LocalApiService>();
         services.AddSingleton<SherpaOnnxService>();
+        services.AddSingleton<GoogleCloudSpeechService>();
 
         // ViewModels
         services.AddSingleton<MainViewModel>();

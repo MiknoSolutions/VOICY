@@ -47,11 +47,13 @@ public class SettingsViewModel : ViewModelBase
             {
                 OnPropertyChanged(nameof(IsApiMode));
                 OnPropertyChanged(nameof(IsLocalApiMode));
+                OnPropertyChanged(nameof(IsGoogleCloudMode));
             }
         }
     }
     public bool IsApiMode => Backend == WhisperBackend.Api;
     public bool IsLocalApiMode => Backend == WhisperBackend.LocalApi;
+    public bool IsGoogleCloudMode => Backend == WhisperBackend.GoogleCloud;
 
     private string _apiKey = string.Empty;
     public string ApiKey
@@ -214,6 +216,21 @@ public class SettingsViewModel : ViewModelBase
         set => SetProperty(ref _localApiModelName, value);
     }
 
+    // Google Cloud
+    private string _googleCloudCredentialsPath = string.Empty;
+    public string GoogleCloudCredentialsPath
+    {
+        get => _googleCloudCredentialsPath;
+        set => SetProperty(ref _googleCloudCredentialsPath, value);
+    }
+
+    private string _googleCloudModel = "chirp_2";
+    public string GoogleCloudModel
+    {
+        get => _googleCloudModel;
+        set => SetProperty(ref _googleCloudModel, value);
+    }
+
     // Collections
     public ObservableCollection<ModelDefinition> AvailableModels { get; }
     public ObservableCollection<string> AvailableDevices { get; }
@@ -299,6 +316,8 @@ public class SettingsViewModel : ViewModelBase
         _settings.VadSilenceMs = (int)VadSilenceMs;
         _settings.LocalApiUrl = LocalApiUrl;
         _settings.LocalApiModelName = LocalApiModelName;
+        _settings.GoogleCloudCredentialsPath = GoogleCloudCredentialsPath;
+        _settings.GoogleCloudModel = GoogleCloudModel;
 
         _settingsService.Save(_settings);
         Saved = true;
@@ -355,6 +374,8 @@ public class SettingsViewModel : ViewModelBase
         VadSilenceMs = _settings.VadSilenceMs;
         LocalApiUrl = _settings.LocalApiUrl;
         LocalApiModelName = _settings.LocalApiModelName;
+        GoogleCloudCredentialsPath = _settings.GoogleCloudCredentialsPath;
+        GoogleCloudModel = _settings.GoogleCloudModel;
     }
 
     private static string FormatHotkey(int modifiers, int key)

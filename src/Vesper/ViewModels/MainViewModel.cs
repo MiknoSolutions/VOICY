@@ -20,6 +20,7 @@ public class MainViewModel : ViewModelBase, IDisposable
     private readonly OpenAiWhisperService _apiWhisper;
     private readonly LocalApiService _localApi;
     private readonly SherpaOnnxService _sherpaOnnx;
+    private readonly GoogleCloudSpeechService _googleCloud;
     private readonly IServiceProvider _serviceProvider;
     private readonly Dispatcher _dispatcher;
 
@@ -40,6 +41,7 @@ public class MainViewModel : ViewModelBase, IDisposable
         OpenAiWhisperService apiWhisper,
         LocalApiService localApi,
         SherpaOnnxService sherpaOnnx,
+        GoogleCloudSpeechService googleCloud,
         IServiceProvider serviceProvider)
     {
         _audio = audio;
@@ -51,6 +53,7 @@ public class MainViewModel : ViewModelBase, IDisposable
         _apiWhisper = apiWhisper;
         _localApi = localApi;
         _sherpaOnnx = sherpaOnnx;
+        _googleCloud = googleCloud;
         _serviceProvider = serviceProvider;
         _dispatcher = Application.Current.Dispatcher;
 
@@ -198,7 +201,7 @@ public class MainViewModel : ViewModelBase, IDisposable
                 catch (Exception ex)
                 {
                     MessageBox.Show($"Settings saved, but failed to apply:\n{ex.Message}",
-                        "VESPER — Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                        "Vesper — Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
         }
@@ -346,6 +349,20 @@ public class MainViewModel : ViewModelBase, IDisposable
     private void StartStreamingMode()
     {
         _textInjection.CaptureForegroundWindow();
+
+        // Use Google Cloud true streaming when available
+        if (_settings.Backend == WhisperBackend.GoogleCloud && _googleCloud.IsAvailable)
+        {
+            _googleCloud.StreamingResultReceived += OnGoogleCloudStreamingResult;
+            _audio.DataAvailable += OnStreamingAudioForGoogleCloud;
+            _audio.StartRecording();
+            IsListening = true;
+            StatusText = "Streaming — Google Cloud real-time...";
+            _ = _googleCloud.StartStreamingAsync(_settings.Language, CancellationToken.None);
+            return;
+        }
+
+        // Fallback: timer-based batch streaming for other backends
         _audio.StartRecording();
         IsListening = true;
         StatusText = "Streaming — real-time transcription...";
@@ -360,6 +377,14 @@ public class MainViewModel : ViewModelBase, IDisposable
 
     private void StopStreamingMode()
     {
+        // Google Cloud streaming cleanup
+        if (_googleCloud.IsStreaming)
+        {
+            _audio.DataAvailable -= OnStreamingAudioForGoogleCloud;
+            _googleCloud.StreamingResultReceived -= OnGoogleCloudStreamingResult;
+            _ = Task.Run(async () => await _googleCloud.StopStreamingAsync());
+        }
+
         if (_streamingTimer != null)
         {
             _streamingTimer.Stop();
@@ -411,6 +436,25 @@ public class MainViewModel : ViewModelBase, IDisposable
         {
             _isStreamingTranscribing = false;
         }
+    }
+
+    // ── Google Cloud Streaming Handlers ──
+
+    private void OnStreamingAudioForGoogleCloud(object? sender, float[] samples)
+    {
+        _googleCloud.FeedAudioSamples(samples);
+    }
+
+    private void OnGoogleCloudStreamingResult(object? sender, string transcript)
+    {
+        _dispatcher.Invoke(() =>
+        {
+            if (!string.IsNullOrWhiteSpace(transcript))
+            {
+                LastTranscription += transcript + " ";
+                _textInjection.InjectText(transcript + " ");
+            }
+        });
     }
 
     // ── Recording ──
@@ -485,6 +529,7 @@ public class MainViewModel : ViewModelBase, IDisposable
         {
             WhisperBackend.Local => GetLocalRecognizer(),
             WhisperBackend.LocalApi => _localApi,
+            WhisperBackend.GoogleCloud => _googleCloud,
             _ => _apiWhisper
         };
     }
@@ -559,6 +604,26 @@ public class MainViewModel : ViewModelBase, IDisposable
         else if (_settings.Backend == WhisperBackend.LocalApi)
         {
             _localApi.Configure(_settings.LocalApiUrl, _settings.LocalApiModelName);
+        }
+        else if (_settings.Backend == WhisperBackend.GoogleCloud)
+        {
+            if (!string.IsNullOrWhiteSpace(_settings.GoogleCloudCredentialsPath))
+            {
+                try
+                {
+                    _googleCloud.Configure(
+                        _settings.GoogleCloudCredentialsPath,
+                        model: _settings.GoogleCloudModel);
+                }
+                catch (Exception ex)
+                {
+                    StatusText = $"Google Cloud config error: {ex.Message}";
+                }
+            }
+            else
+            {
+                StatusText = "Google Cloud credentials not set — open Settings";
+            }
         }
     }
 
