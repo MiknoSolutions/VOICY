@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Threading;
 using Voicy.Helpers;
 
 namespace Voicy.Services.Input;
@@ -19,56 +20,40 @@ public sealed class ClipboardTextInjectionService : ITextInjectionService
 
         var targetWindow = _lastForegroundWindow;
 
-        // Step 1: Set clipboard on the WPF dispatcher thread (has message pump)
+        // Set clipboard on WPF dispatcher thread (needs message pump)
         Application.Current.Dispatcher.Invoke(() =>
         {
             try { Clipboard.SetText(text); }
-            catch { /* clipboard locked */ }
+            catch { /* clipboard may be locked */ }
         });
 
-        // Step 2: Focus target window and paste on a background thread
-        // (to avoid blocking the UI with Thread.Sleep)
-        Task.Run(() =>
+        // Schedule paste with a delay to let clipboard settle.
+        // Use DispatcherTimer so we stay on the UI thread (which owns a window
+        // and can interact with the input system reliably).
+        var timer = new DispatcherTimer(DispatcherPriority.Send)
         {
-            try
+            Interval = TimeSpan.FromMilliseconds(150)
+        };
+        timer.Tick += (_, _) =>
+        {
+            timer.Stop();
+
+            // If VOICY window somehow stole focus, give it back
+            var currentFg = NativeInterop.GetForegroundWindow();
+            if (currentFg != targetWindow && targetWindow != IntPtr.Zero)
             {
-                // Release modifier keys first (hotkey combo ghost state)
-                ReleaseAllModifiers();
-                Thread.Sleep(50);
-
-                // Focus the target window
-                FocusWindow(targetWindow);
-
-                // Send Ctrl+V
-                SendCtrlV();
+                NativeInterop.SetForegroundWindow(targetWindow);
+                Thread.Sleep(100);
             }
-            catch { /* best effort */ }
-        });
-    }
 
-    private static void FocusWindow(IntPtr targetWindow)
-    {
-        if (targetWindow == IntPtr.Zero) return;
+            // Release any modifier keys left from the hotkey combo
+            ReleaseAllModifiers();
+            Thread.Sleep(30);
 
-        var currentThreadId = NativeInterop.GetCurrentThreadId();
-        var targetThreadId = NativeInterop.GetWindowThreadProcessId(targetWindow, out _);
-
-        bool attached = false;
-        if (currentThreadId != targetThreadId)
-            attached = NativeInterop.AttachThreadInput(currentThreadId, targetThreadId, true);
-
-        try
-        {
-            NativeInterop.SetForegroundWindow(targetWindow);
-            NativeInterop.BringWindowToTop(targetWindow);
-        }
-        finally
-        {
-            if (attached)
-                NativeInterop.AttachThreadInput(currentThreadId, targetThreadId, false);
-        }
-
-        Thread.Sleep(200);
+            // Send Ctrl+V to paste
+            SendCtrlV();
+        };
+        timer.Start();
     }
 
     private static void ReleaseAllModifiers()
