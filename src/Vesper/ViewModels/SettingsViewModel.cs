@@ -247,8 +247,6 @@ public class SettingsViewModel : ViewModelBase
         GoogleCloudCredentialsPath = dest;
         return dest;
     }
-        set => SetProperty(ref _googleCloudModel, value);
-    }
 
     // Collections
     public ObservableCollection<ModelDefinition> AvailableModels { get; }
