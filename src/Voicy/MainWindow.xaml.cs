@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel;
+using Hardcodet.Wpf.TaskbarNotification;
 using System.Windows;
 using System.Windows.Controls;
 using Voicy.Models;
@@ -9,12 +10,15 @@ namespace Voicy;
 public partial class MainWindow : Window
 {
     private MainViewModel ViewModel => (MainViewModel)DataContext;
+    private readonly TaskbarIcon _trayIcon;
     private bool _forceClose;
 
     public MainWindow(MainViewModel viewModel)
     {
         DataContext = viewModel;
         InitializeComponent();
+        _trayIcon = (TaskbarIcon)FindResource("TrayIcon");
+        _trayIcon.TrayMouseDoubleClick += TrayIcon_TrayMouseDoubleClick;
         viewModel.Start();
     }
 
@@ -36,7 +40,7 @@ public partial class MainWindow : Window
         }
 
         ViewModel.Dispose();
-        TrayIcon.Dispose();
+        _trayIcon.Dispose();
     }
 
     private void MinimizeToTray_Click(object sender, RoutedEventArgs e)
@@ -45,6 +49,20 @@ public partial class MainWindow : Window
     }
 
     private void TrayShow_Click(object sender, RoutedEventArgs e)
+    {
+        ShowWindow();
+    }
+
+    private void TraySettings_Click(object sender, RoutedEventArgs e)
+    {
+        if (ViewModel.OpenSettingsCommand.CanExecute(null))
+        {
+            ShowWindow();
+            ViewModel.OpenSettingsCommand.Execute(null);
+        }
+    }
+
+    private void TrayIcon_TrayMouseDoubleClick(object? sender, RoutedEventArgs e)
     {
         ShowWindow();
     }

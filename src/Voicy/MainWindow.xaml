@@ -12,6 +12,20 @@
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
         <helpers:BoolToStatusColorConverter x:Key="BoolToColor"/>
+
+        <!-- Keep tray icon outside visual tree so it remains active when window is hidden. -->
+        <tb:TaskbarIcon x:Key="TrayIcon"
+                        ToolTipText="VOICY"
+                        Visibility="Visible">
+            <tb:TaskbarIcon.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="Show" Click="TrayShow_Click"/>
+                    <MenuItem Header="Settings" Click="TraySettings_Click"/>
+                    <Separator/>
+                    <MenuItem Header="Exit" Click="TrayExit_Click"/>
+                </ContextMenu>
+            </tb:TaskbarIcon.ContextMenu>
+        </tb:TaskbarIcon>
     </Window.Resources>
 
     <Grid Margin="16">
@@ -81,21 +95,5 @@
                     Width="80" Margin="0,0,8,0"/>
             <Button Content="Minimize to Tray" Click="MinimizeToTray_Click" Width="110"/>
         </StackPanel>
-
-        <!-- System Tray Icon -->
-        <tb:TaskbarIcon x:Name="TrayIcon"
-                        ToolTipText="VOICY"
-                        Visibility="Visible"
-                        DoubleClickCommand="{Binding ShowWindowCommand}"
-                        x:FieldModifier="private">
-            <tb:TaskbarIcon.ContextMenu>
-                <ContextMenu>
-                    <MenuItem Header="Show" Click="TrayShow_Click"/>
-                    <MenuItem Header="Settings" Command="{Binding OpenSettingsCommand}"/>
-                    <Separator/>
-                    <MenuItem Header="Exit" Click="TrayExit_Click"/>
-                </ContextMenu>
-            </tb:TaskbarIcon.ContextMenu>
-        </tb:TaskbarIcon>
     </Grid>
 </Window>
