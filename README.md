@@ -1,4 +1,4 @@
-# VOICY
+# VESPER
 
 Lightweight, portable Windows desktop application for **speech-to-text** recognition powered by [Whisper AI](https://github.com/openai/whisper).
 
@@ -24,7 +24,7 @@ Lightweight, portable Windows desktop application for **speech-to-text** recogni
 
 ## Quick Start
 
-1. Download `Voicy.exe` from Releases
+1. Download `Vesper.exe` from Releases
 2. Run the application
 3. Open **Settings** and choose:
    - **Backend**: Local (offline) or OpenAI API
@@ -39,17 +39,17 @@ Lightweight, portable Windows desktop application for **speech-to-text** recogni
 
 ```bash
 # Clone
-git clone https://github.com/MiknoSolutions/VOICY.git
-cd VOICY/src
+git clone https://github.com/MiknoSolutions/VESPER.git
+cd VESPER/src
 
 # Build
 dotnet build
 
 # Publish portable .exe
-dotnet publish Voicy/Voicy.csproj -c Release -r win-x64 --self-contained
+dotnet publish Vesper/Vesper.csproj -c Release -r win-x64 --self-contained
 ```
 
-The output will be in `src/Voicy/bin/Release/net8.0-windows/win-x64/publish/`.
+The output will be in `src/Vesper/bin/Release/net8.0-windows/win-x64/publish/`.
 
 ## Tech Stack
 
@@ -61,7 +61,7 @@ The output will be in `src/Voicy/bin/Release/net8.0-windows/win-x64/publish/`.
 ## Project Structure
 
 ```
-src/Voicy/
+src/Vesper/
 ├── Models/          — AppSettings, enums
 ├── Services/
 │   ├── Audio/       — Microphone capture, Voice Activity Detection
