@@ -80,7 +80,7 @@
                         <!-- Download progress -->
                         <StackPanel Visibility="{Binding IsDownloading, Converter={StaticResource BoolToVis}}"
                                     Margin="0,6,0,0">
-                            <ProgressBar Value="{Binding DownloadProgress}" Minimum="0" Maximum="100" Height="16"/>
+                            <ProgressBar Minimum="0" Maximum="100" Value="{Binding DownloadProgress}" Height="16"/>
                             <TextBlock Text="{Binding DownloadStatus}" FontSize="11" Margin="0,2,0,0"/>
                         </StackPanel>
 
@@ -133,16 +133,16 @@
                             <Run Text="{Binding VadThresholdDb, StringFormat={}{0:F0} dB}"/>
                         </TextBlock>
                         <Slider Minimum="-60" Maximum="-10"
-                                Value="{Binding VadThresholdDb}"
-                                TickFrequency="5" IsSnapToTickEnabled="True" Margin="0,4,0,8"/>
+                                TickFrequency="5" IsSnapToTickEnabled="True" Margin="0,4,0,8"
+                                Value="{Binding VadThresholdDb}"/>
 
                         <TextBlock>
                             <Run Text="Silence timeout: "/>
                             <Run Text="{Binding VadSilenceMs, StringFormat={}{0} ms}"/>
                         </TextBlock>
                         <Slider Minimum="300" Maximum="3000"
-                                Value="{Binding VadSilenceMs}"
-                                TickFrequency="100" IsSnapToTickEnabled="True" Margin="0,4,0,0"/>
+                                TickFrequency="100" IsSnapToTickEnabled="True" Margin="0,4,0,0"
+                                Value="{Binding VadSilenceMs}"/>
                     </StackPanel>
                 </GroupBox>
 
