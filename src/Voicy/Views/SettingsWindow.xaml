@@ -80,14 +80,13 @@
                         <!-- Download progress -->
                         <StackPanel Visibility="{Binding IsDownloading, Converter={StaticResource BoolToVis}}"
                                     Margin="0,6,0,0">
-                            <ProgressBar Minimum="0" Maximum="100" Value="{Binding DownloadProgress}" Height="16"/>
-                            <TextBlock Text="{Binding DownloadStatus}" FontSize="11" Margin="0,2,0,0"/>
+                            <ProgressBar Minimum="0" Maximum="100"
+                                         Value="{Binding DownloadProgress, Mode=OneWay}" Height="16"/>
+                            <TextBlock Text="{Binding DownloadStatus, Mode=OneWay}" FontSize="11" Margin="0,2,0,0"/>
                         </StackPanel>
 
-                        <TextBlock FontSize="11" Margin="0,4,0,0" Foreground="Gray">
-                            <Run Text="Model downloaded: "/>
-                            <Run Text="{Binding IsModelDownloaded, Mode=OneWay}"/>
-                        </TextBlock>
+                        <TextBlock Text="{Binding IsModelDownloaded, Mode=OneWay, StringFormat='Model downloaded: {0}'}"
+                                   FontSize="11" Margin="0,4,0,0" Foreground="Gray"/>
                     </StackPanel>
                 </GroupBox>
 
@@ -96,6 +95,7 @@
                     <ComboBox ItemsSource="{Binding Languages}"
                               SelectedValue="{Binding SelectedLanguage}"
                               SelectedValuePath="Code"
+                              DisplayMemberPath="Name"
                               Margin="4"/>
                 </GroupBox>
 
@@ -128,18 +128,12 @@
                 <!-- VAD Settings -->
                 <GroupBox Header="Voice Detection (Continuous mode)" Margin="0,0,0,8">
                     <StackPanel Margin="4">
-                        <TextBlock>
-                            <Run Text="Sensitivity: "/>
-                            <Run Text="{Binding VadThresholdDb, StringFormat={}{0:F0} dB}"/>
-                        </TextBlock>
+                        <TextBlock Text="{Binding VadThresholdDb, StringFormat='Sensitivity: {0:F0} dB'}" />
                         <Slider Minimum="-60" Maximum="-10"
                                 TickFrequency="5" IsSnapToTickEnabled="True" Margin="0,4,0,8"
                                 Value="{Binding VadThresholdDb}"/>
 
-                        <TextBlock>
-                            <Run Text="Silence timeout: "/>
-                            <Run Text="{Binding VadSilenceMs, StringFormat={}{0} ms}"/>
-                        </TextBlock>
+                        <TextBlock Text="{Binding VadSilenceMs, StringFormat='Silence timeout: {0:F0} ms'}" />
                         <Slider Minimum="300" Maximum="3000"
                                 TickFrequency="100" IsSnapToTickEnabled="True" Margin="0,4,0,0"
                                 Value="{Binding VadSilenceMs}"/>

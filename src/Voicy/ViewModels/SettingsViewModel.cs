@@ -104,16 +104,16 @@ public class SettingsViewModel : ViewModelBase
         set => SetProperty(ref _isCapturingHotkey, value);
     }
 
-    // VAD
-    private float _vadThresholdDb = -30f;
-    public float VadThresholdDb
+    // VAD — use double to match Slider.Value type (avoids TwoWay binding type mismatch)
+    private double _vadThresholdDb = -30.0;
+    public double VadThresholdDb
     {
         get => _vadThresholdDb;
         set => SetProperty(ref _vadThresholdDb, value);
     }
 
-    private int _vadSilenceMs = 800;
-    public int VadSilenceMs
+    private double _vadSilenceMs = 800.0;
+    public double VadSilenceMs
     {
         get => _vadSilenceMs;
         set => SetProperty(ref _vadSilenceMs, value);
@@ -197,8 +197,8 @@ public class SettingsViewModel : ViewModelBase
         _settings.Mode = Mode;
         _settings.HotkeyModifiers = _hotkeyModifiers;
         _settings.HotkeyKey = _hotkeyKey;
-        _settings.VadThresholdDb = VadThresholdDb;
-        _settings.VadSilenceMs = VadSilenceMs;
+        _settings.VadThresholdDb = (float)VadThresholdDb;
+        _settings.VadSilenceMs = (int)VadSilenceMs;
 
         _settingsService.Save(_settings);
         Saved = true;
