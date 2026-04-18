@@ -16,8 +16,8 @@ public partial class MainWindow : Window
 
     public MainWindow(MainViewModel viewModel)
     {
-        DataContext = viewModel;
         InitializeComponent();
+        DataContext = viewModel;
         CreateTrayIcon();
         viewModel.Start();
     }

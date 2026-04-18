@@ -10,8 +10,12 @@ public partial class SettingsWindow : Window
 
     public SettingsWindow(SettingsViewModel viewModel)
     {
-        DataContext = viewModel;
         InitializeComponent();
+
+        // Set DataContext AFTER InitializeComponent so that
+        // all controls (Sliders, etc.) have their Min/Max ranges
+        // configured before bindings resolve with actual values.
+        DataContext = viewModel;
 
         // Set PasswordBox value (can't bind directly)
         ApiKeyBox.Password = viewModel.ApiKey;
