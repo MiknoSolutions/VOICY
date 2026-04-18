@@ -37,10 +37,26 @@ public static class NativeInterop
         public INPUTUNION U;
     }
 
+    // The union must include MOUSEINPUT so the struct size matches
+    // the Win32 INPUT definition (40 bytes on x64). Without it,
+    // Marshal.SizeOf<INPUT>() returns 32 instead of 40, and
+    // SendInput silently fails (returns 0) because cbSize is wrong.
     [StructLayout(LayoutKind.Explicit)]
     public struct INPUTUNION
     {
+        [FieldOffset(0)] public MOUSEINPUT mi;
         [FieldOffset(0)] public KEYBDINPUT ki;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct MOUSEINPUT
+    {
+        public int dx;
+        public int dy;
+        public uint mouseData;
+        public uint dwFlags;
+        public uint time;
+        public IntPtr dwExtraInfo;
     }
 
     [StructLayout(LayoutKind.Sequential)]
