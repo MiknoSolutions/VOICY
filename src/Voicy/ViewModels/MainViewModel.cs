@@ -258,6 +258,8 @@ public class MainViewModel : ViewModelBase, IDisposable
     {
         // Convert float32 samples back to WAV bytes
         var wavBytes = ConvertFloat32ToWav(speechSamples);
+        // Capture foreground window right when speech ends (continuous mode)
+        _textInjection.CaptureForegroundWindow();
         _dispatcher.Invoke(() => _ = TranscribeAndInjectAsync(wavBytes));
     }
 
@@ -265,6 +267,7 @@ public class MainViewModel : ViewModelBase, IDisposable
 
     private void StartRecording()
     {
+        _textInjection.CaptureForegroundWindow();
         _audio.StartRecording();
         IsListening = true;
         StatusText = "Listening...";

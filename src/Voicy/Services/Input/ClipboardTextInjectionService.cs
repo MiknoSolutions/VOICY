@@ -6,18 +6,30 @@ namespace Voicy.Services.Input;
 
 public sealed class ClipboardTextInjectionService : ITextInjectionService
 {
+    private IntPtr _lastForegroundWindow;
+
+    /// <summary>
+    /// Call this BEFORE recording starts to remember which window had focus.
+    /// </summary>
+    public void CaptureForegroundWindow()
+    {
+        _lastForegroundWindow = NativeInterop.GetForegroundWindow();
+    }
+
     public void InjectText(string text)
     {
         if (string.IsNullOrEmpty(text)) return;
 
+        var targetWindow = _lastForegroundWindow;
+
         // Must run on STA thread for clipboard access
-        var thread = new Thread(() => InjectOnStaThread(text));
+        var thread = new Thread(() => InjectOnStaThread(text, targetWindow));
         thread.SetApartmentState(ApartmentState.STA);
         thread.Start();
         thread.Join(TimeSpan.FromSeconds(3));
     }
 
-    private static void InjectOnStaThread(string text)
+    private static void InjectOnStaThread(string text, IntPtr targetWindow)
     {
         // Save current clipboard
         IDataObject? previousClipboard = null;
@@ -33,6 +45,13 @@ public sealed class ClipboardTextInjectionService : ITextInjectionService
 
         try
         {
+            // Restore focus to the window that was active before recording
+            if (targetWindow != IntPtr.Zero)
+            {
+                NativeInterop.SetForegroundWindow(targetWindow);
+                Thread.Sleep(100);
+            }
+
             Clipboard.SetText(text);
             Thread.Sleep(50);
             SendCtrlV();

@@ -56,6 +56,14 @@ public static class NativeInterop
     [DllImport("user32.dll", SetLastError = true)]
     public static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
 
+    // ── Window focus ──
+    [DllImport("user32.dll")]
+    public static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool SetForegroundWindow(IntPtr hWnd);
+
     // Virtual key codes
     public const ushort VK_CONTROL = 0xA2; // Left Ctrl
     public const ushort VK_V = 0x56;
