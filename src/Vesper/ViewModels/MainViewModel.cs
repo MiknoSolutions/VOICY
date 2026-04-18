@@ -455,10 +455,19 @@ public class MainViewModel : ViewModelBase, IDisposable
             {
                 if (model.IsDownloaded())
                     _sherpaOnnx.LoadModel(model);
+                else
+                    StatusText = $"Model '{model.DisplayName}' not downloaded — open Settings to download";
             }
-            else if (System.IO.File.Exists(_settings.ModelFilePath))
+            else if (model != null && model.Engine == ModelEngine.WhisperNet)
             {
-                _localWhisper.LoadModel(_settings.ModelFilePath);
+                if (System.IO.File.Exists(_settings.ModelFilePath))
+                    _localWhisper.LoadModel(_settings.ModelFilePath);
+                else
+                    StatusText = $"Model '{model.DisplayName}' not downloaded — open Settings to download";
+            }
+            else
+            {
+                StatusText = "No model selected — open Settings to choose and download a model";
             }
         }
         else if (_settings.Backend == WhisperBackend.Api)
