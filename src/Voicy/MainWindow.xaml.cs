@@ -29,12 +29,19 @@ public partial class MainWindow : Window
             _trayIcon = new TaskbarIcon();
             _trayIcon.ToolTipText = "VOICY";
 
-            // Load icon from embedded resource
-            var iconUri = new Uri("pack://application:,,,/Resources/voicy.ico", UriKind.Absolute);
-            var streamInfo = Application.GetResourceStream(iconUri);
-            if (streamInfo != null)
+            // Try loading icon from embedded resource, fall back to system icon
+            try
             {
-                _trayIcon.Icon = new System.Drawing.Icon(streamInfo.Stream);
+                var iconUri = new Uri("pack://application:,,,/Resources/voicy.ico", UriKind.Absolute);
+                var streamInfo = Application.GetResourceStream(iconUri);
+                if (streamInfo != null)
+                    _trayIcon.Icon = new System.Drawing.Icon(streamInfo.Stream);
+                else
+                    _trayIcon.Icon = System.Drawing.SystemIcons.Application;
+            }
+            catch
+            {
+                _trayIcon.Icon = System.Drawing.SystemIcons.Application;
             }
 
             // Context menu

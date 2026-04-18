@@ -5,7 +5,6 @@
         Title="VOICY" Height="320" Width="380"
         WindowStartupLocation="CenterScreen"
         ResizeMode="CanMinimize"
-        Icon="Resources/voicy.ico"
         StateChanged="Window_StateChanged"
         Closing="Window_Closing">
 
