@@ -11,7 +11,6 @@ public sealed class AudioCaptureService : IAudioCaptureService
     private int _deviceIndex;
     private readonly object _lock = new();
     private bool _isRecording;
-    private bool _isPrewarmed;
 
     private const int SampleRate = 16000;
     private const int Channels = 1;
@@ -24,11 +23,17 @@ public sealed class AudioCaptureService : IAudioCaptureService
         if (_deviceIndex != deviceIndex)
         {
             _deviceIndex = deviceIndex;
-            // Re-prewarm with new device
-            if (_isPrewarmed)
+            // If currently recording, restart with new device
+            if (_isRecording)
             {
-                StopMicrophone();
-                PrewarmMicrophone();
+                var wasRecording = _isRecording;
+                StopInternal();
+                if (wasRecording) StartRecording();
+            }
+            else
+            {
+                // Dispose old device so it's recreated next time
+                DisposeWaveIn();
             }
         }
     }
@@ -44,68 +49,42 @@ public sealed class AudioCaptureService : IAudioCaptureService
         return devices;
     }
 
-    /// <summary>
-    /// Keep the microphone device open and listening so StartRecording has zero latency.
-    /// </summary>
     public void PrewarmMicrophone()
     {
+        // Pre-create the WaveInEvent object (but don't start recording)
+        // This saves ~100-200ms on first hotkey press
         lock (_lock)
         {
-            if (_isPrewarmed) return;
-
-            var format = new WaveFormat(SampleRate, BitsPerSample, Channels);
-            _waveIn = new WaveInEvent
-            {
-                WaveFormat = format,
-                DeviceNumber = _deviceIndex,
-                BufferMilliseconds = 100
-            };
-
-            _waveIn.DataAvailable += OnDataAvailable;
-            _waveIn.StartRecording();
-            _isPrewarmed = true;
+            EnsureWaveIn();
         }
     }
 
-    private void StopMicrophone()
+    private void EnsureWaveIn()
     {
-        lock (_lock)
+        if (_waveIn != null) return;
+
+        var format = new WaveFormat(SampleRate, BitsPerSample, Channels);
+        _waveIn = new WaveInEvent
         {
-            if (_waveIn != null)
-            {
-                _waveIn.StopRecording();
-                _waveIn.DataAvailable -= OnDataAvailable;
-                _waveIn.Dispose();
-                _waveIn = null;
-            }
-            _isPrewarmed = false;
-        }
+            WaveFormat = format,
+            DeviceNumber = _deviceIndex,
+            BufferMilliseconds = 50 // smaller buffer = lower latency
+        };
+        _waveIn.DataAvailable += OnDataAvailable;
     }
 
     public void StartRecording()
     {
         lock (_lock)
         {
-            // Ensure microphone is running
-            if (!_isPrewarmed)
-            {
-                var format = new WaveFormat(SampleRate, BitsPerSample, Channels);
-                _waveIn = new WaveInEvent
-                {
-                    WaveFormat = format,
-                    DeviceNumber = _deviceIndex,
-                    BufferMilliseconds = 100
-                };
-                _waveIn.DataAvailable += OnDataAvailable;
-                _waveIn.StartRecording();
-                _isPrewarmed = true;
-            }
+            EnsureWaveIn();
 
-            // Start capturing to buffer
             _buffer = new MemoryStream();
             var fmt = new WaveFormat(SampleRate, BitsPerSample, Channels);
             _writer = new WaveFileWriter(_buffer, fmt);
             _isRecording = true;
+
+            _waveIn!.StartRecording();
         }
     }
 
@@ -117,6 +96,8 @@ public sealed class AudioCaptureService : IAudioCaptureService
                 return [];
 
             _isRecording = false;
+
+            _waveIn?.StopRecording();
 
             _writer.Flush();
             _writer.Dispose();
@@ -137,14 +118,12 @@ public sealed class AudioCaptureService : IAudioCaptureService
             if (_waveIn == null || _buffer == null || _writer == null)
                 return [];
 
-            // Finalize the current WAV file
             _writer.Flush();
             _writer.Dispose();
 
             var wavBytes = _buffer.ToArray();
             _buffer.Dispose();
 
-            // Start a fresh buffer while keeping the mic recording
             _buffer = new MemoryStream();
             var format = new WaveFormat(SampleRate, BitsPerSample, Channels);
             _writer = new WaveFileWriter(_buffer, format);
@@ -173,6 +152,17 @@ public sealed class AudioCaptureService : IAudioCaptureService
         DataAvailable?.Invoke(this, floatSamples);
     }
 
+    private void DisposeWaveIn()
+    {
+        if (_waveIn != null)
+        {
+            try { _waveIn.StopRecording(); } catch { }
+            _waveIn.DataAvailable -= OnDataAvailable;
+            _waveIn.Dispose();
+            _waveIn = null;
+        }
+    }
+
     private void StopInternal()
     {
         _isRecording = false;
@@ -180,7 +170,7 @@ public sealed class AudioCaptureService : IAudioCaptureService
         _writer = null;
         _buffer?.Dispose();
         _buffer = null;
-        StopMicrophone();
+        DisposeWaveIn();
     }
 
     public void Dispose() => StopInternal();
