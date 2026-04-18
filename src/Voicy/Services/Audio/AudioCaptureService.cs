@@ -78,6 +78,29 @@ public sealed class AudioCaptureService : IAudioCaptureService
         }
     }
 
+    public byte[] FlushBuffer()
+    {
+        lock (_lock)
+        {
+            if (_waveIn == null || _buffer == null || _writer == null)
+                return [];
+
+            // Finalize the current WAV file
+            _writer.Flush();
+            _writer.Dispose();
+
+            var wavBytes = _buffer.ToArray();
+            _buffer.Dispose();
+
+            // Start a fresh buffer while keeping the mic recording
+            _buffer = new MemoryStream();
+            var format = new WaveFormat(SampleRate, BitsPerSample, Channels);
+            _writer = new WaveFileWriter(_buffer, format);
+
+            return wavBytes;
+        }
+    }
+
     private void OnDataAvailable(object? sender, WaveInEventArgs e)
     {
         lock (_lock)

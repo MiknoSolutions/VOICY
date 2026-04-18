@@ -4,5 +4,6 @@ public enum RecognitionMode
 {
     Toggle,
     PushToTalk,
-    Continuous
+    Continuous,
+    Streaming
 }

@@ -24,6 +24,8 @@ public class MainViewModel : ViewModelBase, IDisposable
     private AppSettings _settings;
     private bool _isToggleActive;
     private CancellationTokenSource? _cts;
+    private DispatcherTimer? _streamingTimer;
+    private bool _isStreamingTranscribing;
 
     public MainViewModel(
         IAudioCaptureService audio,
@@ -70,9 +72,13 @@ public class MainViewModel : ViewModelBase, IDisposable
                 OnPropertyChanged(nameof(IsToggleMode));
                 OnPropertyChanged(nameof(IsPushToTalkMode));
                 OnPropertyChanged(nameof(IsContinuousMode));
+                OnPropertyChanged(nameof(IsStreamingMode));
                 StopContinuousMode();
+                StopStreamingMode();
                 if (value == RecognitionMode.Continuous)
                     StartContinuousMode();
+                else if (value == RecognitionMode.Streaming)
+                    StartStreamingMode();
             }
         }
     }
@@ -127,6 +133,12 @@ public class MainViewModel : ViewModelBase, IDisposable
         set { if (value) CurrentMode = RecognitionMode.Continuous; }
     }
 
+    public bool IsStreamingMode
+    {
+        get => CurrentMode == RecognitionMode.Streaming;
+        set { if (value) CurrentMode = RecognitionMode.Streaming; }
+    }
+
     private string _hotkeyDisplay = "Ctrl+Shift+R";
     public string HotkeyDisplay
     {
@@ -141,6 +153,8 @@ public class MainViewModel : ViewModelBase, IDisposable
         _hotkey.Start();
         if (CurrentMode == RecognitionMode.Continuous)
             StartContinuousMode();
+        else if (CurrentMode == RecognitionMode.Streaming)
+            StartStreamingMode();
         StatusText = "Ready — press hotkey to start";
     }
 
@@ -265,6 +279,78 @@ public class MainViewModel : ViewModelBase, IDisposable
         // Capture foreground window right when speech ends (continuous mode)
         _textInjection.CaptureForegroundWindow();
         _dispatcher.Invoke(() => _ = TranscribeAndInjectAsync(wavBytes));
+    }
+
+    // ── Streaming Mode ──
+
+    private void StartStreamingMode()
+    {
+        _textInjection.CaptureForegroundWindow();
+        _audio.StartRecording();
+        IsListening = true;
+        StatusText = "Streaming — real-time transcription...";
+
+        _streamingTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(2000)
+        };
+        _streamingTimer.Tick += OnStreamingTick;
+        _streamingTimer.Start();
+    }
+
+    private void StopStreamingMode()
+    {
+        if (_streamingTimer != null)
+        {
+            _streamingTimer.Stop();
+            _streamingTimer.Tick -= OnStreamingTick;
+            _streamingTimer = null;
+        }
+
+        if (IsListening && CurrentMode == RecognitionMode.Streaming)
+        {
+            _audio.StopRecording();
+            IsListening = false;
+        }
+
+        _isStreamingTranscribing = false;
+    }
+
+    private async void OnStreamingTick(object? sender, EventArgs e)
+    {
+        if (_isStreamingTranscribing) return;
+
+        var wavChunk = _audio.FlushBuffer();
+        if (wavChunk.Length < 1000) return; // skip tiny chunks (just WAV header)
+
+        _isStreamingTranscribing = true;
+
+        // Re-capture foreground window for each chunk
+        _textInjection.CaptureForegroundWindow();
+
+        try
+        {
+            var recognizer = GetRecognizer();
+            var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var text = await Task.Run(
+                () => recognizer.TranscribeAsync(wavChunk, _settings.Language, cts.Token),
+                cts.Token);
+
+            if (!string.IsNullOrWhiteSpace(text))
+            {
+                LastTranscription += text;
+                _textInjection.InjectText(text);
+                StatusText = "Streaming — real-time transcription...";
+            }
+        }
+        catch
+        {
+            // Skip failed chunks, keep streaming
+        }
+        finally
+        {
+            _isStreamingTranscribing = false;
+        }
     }
 
     // ── Recording ──
@@ -410,6 +496,7 @@ public class MainViewModel : ViewModelBase, IDisposable
         _cts?.Cancel();
         _cts?.Dispose();
         StopContinuousMode();
+        StopStreamingMode();
         _hotkey.HotkeyToggled -= OnHotkeyToggled;
         _hotkey.HotkeyPressed -= OnHotkeyPressed;
         _hotkey.HotkeyReleased -= OnHotkeyReleased;

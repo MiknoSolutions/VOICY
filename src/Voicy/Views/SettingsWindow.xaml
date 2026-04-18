@@ -37,6 +37,9 @@
                         <RadioButton Content="Continuous (always listening)"
                                      IsChecked="{Binding Mode, Converter={StaticResource EnumConverter}, ConverterParameter=Continuous}"
                                      Margin="0,2"/>
+                        <RadioButton Content="Streaming (real-time paste)"
+                                     IsChecked="{Binding Mode, Converter={StaticResource EnumConverter}, ConverterParameter=Streaming}"
+                                     Margin="0,2"/>
                     </StackPanel>
                 </GroupBox>
 
