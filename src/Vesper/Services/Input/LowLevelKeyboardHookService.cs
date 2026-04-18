@@ -86,6 +86,8 @@ public sealed class LowLevelKeyboardHookService : IGlobalHotkeyService
                     _isKeyDown = false;
                     HotkeyReleased?.Invoke(this, EventArgs.Empty);
                 }
+                // Swallow the hotkey so the target app doesn't beep
+                return (IntPtr)1;
             }
             else if (vkCode == _target2Key && _currentModifiers == _target2Modifiers && _target2Key != 0)
             {
@@ -100,6 +102,8 @@ public sealed class LowLevelKeyboardHookService : IGlobalHotkeyService
                     _isKey2Down = false;
                     Hotkey2Released?.Invoke(this, EventArgs.Empty);
                 }
+                // Swallow the hotkey so the target app doesn't beep
+                return (IntPtr)1;
             }
             else if (IsModifierKey(vkCode) && isUp)
             {

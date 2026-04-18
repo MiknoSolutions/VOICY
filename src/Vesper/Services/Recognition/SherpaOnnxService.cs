@@ -2,6 +2,7 @@ using System.IO;
 using NAudio.Wave;
 using SherpaOnnx;
 using Vesper.Models;
+using Vesper.Services;
 
 namespace Vesper.Services.Recognition;
 
@@ -32,8 +33,12 @@ public sealed class SherpaOnnxService : ISpeechRecognitionService
     {
         var originalDir = model.ModelDirectory;
         if (!NeedsAsciiSafePath(originalDir))
+        {
+            DiagnosticLogger.Log($"Model path is ASCII-safe: {originalDir}");
             return originalDir;
+        }
 
+        DiagnosticLogger.Log($"Non-ASCII path detected: {originalDir} — copying to temp");
         // Use a stable temp path: %TEMP%/vesper-models/<model-id>
         var tempBase = Path.Combine(Path.GetTempPath(), "vesper-models", model.Id);
         if (!Directory.Exists(tempBase))
@@ -60,15 +65,22 @@ public sealed class SherpaOnnxService : ISpeechRecognitionService
         _recognizer = null;
         _loadedModelId = null;
 
+        DiagnosticLogger.Log($"LoadModel: {model.Id} (Engine={model.Engine}, SherpaType={model.SherpaType})");
+        DiagnosticLogger.Log($"ModelDirectory: {model.ModelDirectory}");
+
         // Validate all model files exist and are not truncated before calling native code
         foreach (var file in model.Files)
         {
             var path = model.GetFilePath(file.RelativePath);
             if (!File.Exists(path))
+            {
+                DiagnosticLogger.Log($"MISSING file: {path}");
                 throw new FileNotFoundException(
                     $"Model file missing: {file.RelativePath}. Please re-download the model.", path);
+            }
 
             var fileInfo = new FileInfo(path);
+            DiagnosticLogger.Log($"  File: {file.RelativePath} — {fileInfo.Length:N0} bytes");
             if (fileInfo.Length < 100)
                 throw new InvalidOperationException(
                     $"Model file '{file.RelativePath}' appears corrupted (only {fileInfo.Length} bytes). " +
@@ -113,18 +125,26 @@ public sealed class SherpaOnnxService : ISpeechRecognitionService
                     $"Unknown SherpaOnnx model type for '{model.DisplayName}'. SherpaType is not set.");
         }
 
+        DiagnosticLogger.Log($"Creating OfflineRecognizer (Tokens={config.ModelConfig.Tokens})");
+        DiagnosticLogger.Log($"  Provider={config.ModelConfig.Provider}, NumThreads={config.ModelConfig.NumThreads}");
+        DiagnosticLogger.Log($"  Moonshine.Preprocessor={config.ModelConfig.Moonshine.Preprocessor}");
+        DiagnosticLogger.Log($"  Moonshine.Encoder={config.ModelConfig.Moonshine.Encoder}");
+        DiagnosticLogger.Log($"  SenseVoice.Model={config.ModelConfig.SenseVoice.Model}");
+
         try
         {
             _recognizer = new OfflineRecognizer(config);
+            DiagnosticLogger.Log($"OfflineRecognizer created successfully for {model.Id}");
         }
         catch (Exception ex)
         {
+            DiagnosticLogger.LogException($"OfflineRecognizer creation for {model.Id}", ex);
             _recognizer = null;
             _loadedModelId = null;
             throw new InvalidOperationException(
                 $"Failed to load SherpaOnnx model '{model.DisplayName}'. " +
-                $"Ensure the model files are complete and VC++ Redistributable is installed. " +
-                $"Details: {ex.Message}", ex);
+                $"Check vesper-log.txt for details. " +
+                $"Error: {ex.Message}", ex);
         }
 
         _loadedModelId = model.Id;

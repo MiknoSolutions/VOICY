@@ -17,6 +17,10 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
+        // Start diagnostic log
+        DiagnosticLogger.Clear();
+        DiagnosticLogger.LogEnvironment();
+
         // Global exception handlers to prevent silent crashes
         DispatcherUnhandledException += OnDispatcherUnhandledException;
         AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;

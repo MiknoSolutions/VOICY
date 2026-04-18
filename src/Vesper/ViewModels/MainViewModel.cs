@@ -497,6 +497,8 @@ public class MainViewModel : ViewModelBase, IDisposable
 
     private void ApplySettings()
     {
+        Services.DiagnosticLogger.Log($"ApplySettings: Backend={_settings.Backend}, ModelId={_settings.SelectedModelId}");
+
         CurrentMode = _settings.Mode;
         _hotkey.SetHotkey(_settings.HotkeyModifiers, _settings.HotkeyKey);
         if (_settings.Hotkey2Enabled)
@@ -510,6 +512,8 @@ public class MainViewModel : ViewModelBase, IDisposable
         {
             _settings.MigrateIfNeeded();
             var model = ModelCatalog.GetById(_settings.SelectedModelId);
+            Services.DiagnosticLogger.Log($"Resolved model: {model?.Id ?? "null"}, Engine={model?.Engine}, Downloaded={model?.IsDownloaded()}");
+
             if (model != null && model.Engine == ModelEngine.SherpaOnnx)
             {
                 if (model.IsDownloaded())
@@ -520,6 +524,7 @@ public class MainViewModel : ViewModelBase, IDisposable
                     }
                     catch (Exception ex)
                     {
+                        Services.DiagnosticLogger.LogException("ApplySettings.SherpaOnnx", ex);
                         StatusText = $"Failed to load model: {ex.Message}";
                     }
                 }
