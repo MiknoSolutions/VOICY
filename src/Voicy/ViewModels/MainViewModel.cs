@@ -194,6 +194,9 @@ public class MainViewModel : ViewModelBase, IDisposable
     {
         if (CurrentMode != RecognitionMode.Toggle) return;
 
+        // Capture foreground window on the hook thread BEFORE dispatcher call
+        _textInjection.CaptureForegroundWindow();
+
         _dispatcher.Invoke(() =>
         {
             if (!_isToggleActive)
@@ -213,6 +216,7 @@ public class MainViewModel : ViewModelBase, IDisposable
     {
         if (CurrentMode != RecognitionMode.PushToTalk) return;
 
+        _textInjection.CaptureForegroundWindow();
         _dispatcher.Invoke(() => StartRecording());
     }
 
@@ -267,7 +271,6 @@ public class MainViewModel : ViewModelBase, IDisposable
 
     private void StartRecording()
     {
-        _textInjection.CaptureForegroundWindow();
         _audio.StartRecording();
         IsListening = true;
         StatusText = "Listening...";

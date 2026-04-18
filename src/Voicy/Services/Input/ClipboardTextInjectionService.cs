@@ -8,9 +8,6 @@ public sealed class ClipboardTextInjectionService : ITextInjectionService
 {
     private IntPtr _lastForegroundWindow;
 
-    /// <summary>
-    /// Call this BEFORE recording starts to remember which window had focus.
-    /// </summary>
     public void CaptureForegroundWindow()
     {
         _lastForegroundWindow = NativeInterop.GetForegroundWindow();
@@ -22,59 +19,113 @@ public sealed class ClipboardTextInjectionService : ITextInjectionService
 
         var targetWindow = _lastForegroundWindow;
 
-        // Must run on STA thread for clipboard access
         var thread = new Thread(() => InjectOnStaThread(text, targetWindow));
         thread.SetApartmentState(ApartmentState.STA);
         thread.Start();
-        thread.Join(TimeSpan.FromSeconds(3));
+        thread.Join(TimeSpan.FromSeconds(5));
     }
 
     private static void InjectOnStaThread(string text, IntPtr targetWindow)
     {
         // Save current clipboard
-        IDataObject? previousClipboard = null;
+        string? previousText = null;
         try
         {
             if (Clipboard.ContainsText())
-                previousClipboard = Clipboard.GetDataObject();
+                previousText = Clipboard.GetText();
         }
-        catch
-        {
-            // Clipboard may be locked by another process
-        }
+        catch { }
 
         try
         {
-            // Restore focus to the window that was active before recording
-            if (targetWindow != IntPtr.Zero)
-            {
-                NativeInterop.SetForegroundWindow(targetWindow);
-                Thread.Sleep(100);
-            }
+            // Forcefully restore focus to the target window
+            FocusWindow(targetWindow);
+
+            // Release any held modifier keys (from hotkey combo) before pasting
+            ReleaseAllModifiers();
+            Thread.Sleep(30);
 
             Clipboard.SetText(text);
             Thread.Sleep(50);
             SendCtrlV();
-            Thread.Sleep(50);
+            Thread.Sleep(100);
         }
         finally
         {
-            // Restore previous clipboard after a brief delay
+            // Best-effort restore clipboard
             try
             {
-                Thread.Sleep(100);
-                if (previousClipboard != null && previousClipboard.GetDataPresent(DataFormats.Text))
+                if (previousText != null)
                 {
-                    var prevText = previousClipboard.GetData(DataFormats.Text) as string;
-                    if (prevText != null)
-                        Clipboard.SetText(prevText);
+                    Thread.Sleep(200);
+                    Clipboard.SetText(previousText);
                 }
             }
-            catch
-            {
-                // Best-effort restore
-            }
+            catch { }
         }
+    }
+
+    private static void FocusWindow(IntPtr targetWindow)
+    {
+        if (targetWindow == IntPtr.Zero) return;
+
+        // Attach our thread's input to the target window's thread
+        // so SetForegroundWindow works even when we're not foreground
+        var currentThreadId = NativeInterop.GetCurrentThreadId();
+        var targetThreadId = NativeInterop.GetWindowThreadProcessId(targetWindow, out _);
+
+        bool attached = false;
+        if (currentThreadId != targetThreadId)
+            attached = NativeInterop.AttachThreadInput(currentThreadId, targetThreadId, true);
+
+        try
+        {
+            NativeInterop.BringWindowToTop(targetWindow);
+            NativeInterop.SetForegroundWindow(targetWindow);
+        }
+        finally
+        {
+            if (attached)
+                NativeInterop.AttachThreadInput(currentThreadId, targetThreadId, false);
+        }
+
+        // Give the OS time to actually switch focus
+        Thread.Sleep(150);
+    }
+
+    private static void ReleaseAllModifiers()
+    {
+        int size = Marshal.SizeOf<NativeInterop.INPUT>();
+
+        // Release Ctrl, Shift, Alt (both sides) to clear ghost key state
+        ushort[] modifiers =
+        [
+            NativeInterop.VK_LCONTROL,
+            NativeInterop.VK_RCONTROL,
+            NativeInterop.VK_LSHIFT,
+            NativeInterop.VK_RSHIFT,
+            NativeInterop.VK_LMENU,
+            NativeInterop.VK_RMENU,
+        ];
+
+        var inputs = new NativeInterop.INPUT[modifiers.Length];
+        for (int i = 0; i < modifiers.Length; i++)
+        {
+            inputs[i] = new NativeInterop.INPUT
+            {
+                type = NativeInterop.INPUT_KEYBOARD,
+                U = new NativeInterop.INPUTUNION
+                {
+                    ki = new NativeInterop.KEYBDINPUT
+                    {
+                        wVk = modifiers[i],
+                        dwFlags = NativeInterop.KEYEVENTF_KEYUP
+                    }
+                }
+            };
+        }
+
+        NativeInterop.SendInput((uint)inputs.Length, inputs, size);
     }
 
     private static void SendCtrlV()
@@ -83,42 +134,10 @@ public sealed class ClipboardTextInjectionService : ITextInjectionService
 
         var inputs = new NativeInterop.INPUT[]
         {
-            // Ctrl down
-            new()
-            {
-                type = NativeInterop.INPUT_KEYBOARD,
-                U = new NativeInterop.INPUTUNION
-                {
-                    ki = new NativeInterop.KEYBDINPUT { wVk = NativeInterop.VK_CONTROL }
-                }
-            },
-            // V down
-            new()
-            {
-                type = NativeInterop.INPUT_KEYBOARD,
-                U = new NativeInterop.INPUTUNION
-                {
-                    ki = new NativeInterop.KEYBDINPUT { wVk = NativeInterop.VK_V }
-                }
-            },
-            // V up
-            new()
-            {
-                type = NativeInterop.INPUT_KEYBOARD,
-                U = new NativeInterop.INPUTUNION
-                {
-                    ki = new NativeInterop.KEYBDINPUT { wVk = NativeInterop.VK_V, dwFlags = NativeInterop.KEYEVENTF_KEYUP }
-                }
-            },
-            // Ctrl up
-            new()
-            {
-                type = NativeInterop.INPUT_KEYBOARD,
-                U = new NativeInterop.INPUTUNION
-                {
-                    ki = new NativeInterop.KEYBDINPUT { wVk = NativeInterop.VK_CONTROL, dwFlags = NativeInterop.KEYEVENTF_KEYUP }
-                }
-            }
+            new() { type = NativeInterop.INPUT_KEYBOARD, U = new() { ki = new() { wVk = NativeInterop.VK_LCONTROL } } },
+            new() { type = NativeInterop.INPUT_KEYBOARD, U = new() { ki = new() { wVk = NativeInterop.VK_V } } },
+            new() { type = NativeInterop.INPUT_KEYBOARD, U = new() { ki = new() { wVk = NativeInterop.VK_V, dwFlags = NativeInterop.KEYEVENTF_KEYUP } } },
+            new() { type = NativeInterop.INPUT_KEYBOARD, U = new() { ki = new() { wVk = NativeInterop.VK_LCONTROL, dwFlags = NativeInterop.KEYEVENTF_KEYUP } } },
         };
 
         NativeInterop.SendInput((uint)inputs.Length, inputs, size);

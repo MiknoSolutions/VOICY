@@ -64,7 +64,27 @@ public static class NativeInterop
     [return: MarshalAs(UnmanagedType.Bool)]
     public static extern bool SetForegroundWindow(IntPtr hWnd);
 
+    [DllImport("user32.dll")]
+    public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+
+    [DllImport("kernel32.dll")]
+    public static extern uint GetCurrentThreadId();
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, [MarshalAs(UnmanagedType.Bool)] bool fAttach);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool BringWindowToTop(IntPtr hWnd);
+
     // Virtual key codes
     public const ushort VK_CONTROL = 0xA2; // Left Ctrl
+    public const ushort VK_LSHIFT = 0xA0;
+    public const ushort VK_RSHIFT = 0xA1;
+    public const ushort VK_LCONTROL = 0xA2;
+    public const ushort VK_RCONTROL = 0xA3;
+    public const ushort VK_LMENU = 0xA4;  // Left Alt
+    public const ushort VK_RMENU = 0xA5;  // Right Alt
     public const ushort VK_V = 0x56;
 }
