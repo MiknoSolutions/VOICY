@@ -1,0 +1,159 @@
+<Window x:Class="Voicy.Views.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:helpers="clr-namespace:Voicy.Helpers"
+        Title="VOICY — Settings" Height="540" Width="440"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        KeyDown="Window_KeyDown">
+
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+        <helpers:EnumBooleanConverter x:Key="EnumConverter"/>
+        <helpers:BoolToCaptureTextConverter x:Key="BoolToCapture"/>
+    </Window.Resources>
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0" Text="Settings" FontSize="20" FontWeight="SemiBold" Margin="0,0,0,12"/>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+
+                <!-- Recognition Mode -->
+                <GroupBox Header="Recognition Mode" Margin="0,0,0,8">
+                    <StackPanel Margin="4">
+                        <RadioButton Content="Toggle (click to start/stop)"
+                                     IsChecked="{Binding Mode, Converter={StaticResource EnumConverter}, ConverterParameter=Toggle}"
+                                     Margin="0,2"/>
+                        <RadioButton Content="Push-to-Talk (hold key)"
+                                     IsChecked="{Binding Mode, Converter={StaticResource EnumConverter}, ConverterParameter=PushToTalk}"
+                                     Margin="0,2"/>
+                        <RadioButton Content="Continuous (always listening)"
+                                     IsChecked="{Binding Mode, Converter={StaticResource EnumConverter}, ConverterParameter=Continuous}"
+                                     Margin="0,2"/>
+                    </StackPanel>
+                </GroupBox>
+
+                <!-- Whisper Backend -->
+                <GroupBox Header="Whisper Backend" Margin="0,0,0,8">
+                    <StackPanel Margin="4">
+                        <RadioButton Content="Local (offline)" GroupName="Backend"
+                                     IsChecked="{Binding Backend, Converter={StaticResource EnumConverter}, ConverterParameter=Local}"
+                                     Margin="0,2"/>
+                        <RadioButton Content="OpenAI API (online)" GroupName="Backend"
+                                     IsChecked="{Binding Backend, Converter={StaticResource EnumConverter}, ConverterParameter=Api}"
+                                     Margin="0,2"/>
+
+                        <!-- API Key (visible only for API mode) -->
+                        <StackPanel Visibility="{Binding IsApiMode, Converter={StaticResource BoolToVis}}"
+                                    Margin="0,6,0,0">
+                            <TextBlock Text="API Key:" Margin="0,0,0,2"/>
+                            <PasswordBox x:Name="ApiKeyBox" MaxLength="200"
+                                         PasswordChanged="ApiKeyBox_PasswordChanged"/>
+                        </StackPanel>
+                    </StackPanel>
+                </GroupBox>
+
+                <!-- Model Selection (for local backend) -->
+                <GroupBox Header="Whisper Model" Margin="0,0,0,8">
+                    <StackPanel Margin="4">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <ComboBox Grid.Column="0"
+                                      ItemsSource="{Binding AvailableModels}"
+                                      SelectedItem="{Binding SelectedModel}"
+                                      Margin="0,0,8,0"/>
+                            <Button Grid.Column="1" Content="Download"
+                                    Command="{Binding DownloadModelCommand}"
+                                    Width="80"/>
+                        </Grid>
+
+                        <!-- Download progress -->
+                        <StackPanel Visibility="{Binding IsDownloading, Converter={StaticResource BoolToVis}}"
+                                    Margin="0,6,0,0">
+                            <ProgressBar Value="{Binding DownloadProgress}" Minimum="0" Maximum="100" Height="16"/>
+                            <TextBlock Text="{Binding DownloadStatus}" FontSize="11" Margin="0,2,0,0"/>
+                        </StackPanel>
+
+                        <TextBlock FontSize="11" Margin="0,4,0,0" Foreground="Gray">
+                            <Run Text="Model downloaded: "/>
+                            <Run Text="{Binding IsModelDownloaded, Mode=OneWay}"/>
+                        </TextBlock>
+                    </StackPanel>
+                </GroupBox>
+
+                <!-- Language -->
+                <GroupBox Header="Language" Margin="0,0,0,8">
+                    <ComboBox ItemsSource="{Binding Languages}"
+                              SelectedValue="{Binding SelectedLanguage}"
+                              SelectedValuePath="Code"
+                              Margin="4"/>
+                </GroupBox>
+
+                <!-- Hotkey -->
+                <GroupBox Header="Hotkey" Margin="0,0,0,8">
+                    <StackPanel Margin="4">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox Grid.Column="0" Text="{Binding HotkeyDisplay, Mode=OneWay}"
+                                     IsReadOnly="True" Margin="0,0,8,0"/>
+                            <Button Grid.Column="1"
+                                    Content="{Binding IsCapturingHotkey, Converter={StaticResource BoolToCapture}}"
+                                    Click="CaptureHotkey_Click" Width="80"/>
+                        </Grid>
+                        <TextBlock Text="Click 'Set', then press desired key combination"
+                                   FontSize="11" Foreground="Gray" Margin="0,2,0,0"/>
+                    </StackPanel>
+                </GroupBox>
+
+                <!-- Microphone -->
+                <GroupBox Header="Microphone" Margin="0,0,0,8">
+                    <ComboBox ItemsSource="{Binding AvailableDevices}"
+                              SelectedIndex="{Binding SelectedDeviceIndex}"
+                              Margin="4"/>
+                </GroupBox>
+
+                <!-- VAD Settings -->
+                <GroupBox Header="Voice Detection (Continuous mode)" Margin="0,0,0,8">
+                    <StackPanel Margin="4">
+                        <TextBlock>
+                            <Run Text="Sensitivity: "/>
+                            <Run Text="{Binding VadThresholdDb, StringFormat={}{0:F0} dB}"/>
+                        </TextBlock>
+                        <Slider Minimum="-60" Maximum="-10"
+                                Value="{Binding VadThresholdDb}"
+                                TickFrequency="5" IsSnapToTickEnabled="True" Margin="0,4,0,8"/>
+
+                        <TextBlock>
+                            <Run Text="Silence timeout: "/>
+                            <Run Text="{Binding VadSilenceMs, StringFormat={}{0} ms}"/>
+                        </TextBlock>
+                        <Slider Minimum="300" Maximum="3000"
+                                Value="{Binding VadSilenceMs}"
+                                TickFrequency="100" IsSnapToTickEnabled="True" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </GroupBox>
+
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Buttons -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+            <Button Content="Save" Command="{Binding SaveCommand}" Click="Save_Click"
+                    Width="80" Margin="0,0,8,0" IsDefault="True"/>
+            <Button Content="Cancel" Click="Cancel_Click" Width="80" IsCancel="True"/>
+        </StackPanel>
+    </Grid>
+</Window>
