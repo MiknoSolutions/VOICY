@@ -46,7 +46,7 @@
                 <!-- Speech Backend -->
                 <GroupBox Header="Speech Backend" Margin="0,0,0,8">
                     <StackPanel Margin="4">
-                        <RadioButton Content="Whisper Local (offline)" GroupName="Backend"
+                        <RadioButton Content="Local (offline)" GroupName="Backend"
                                      IsChecked="{Binding Backend, Converter={StaticResource EnumConverter}, ConverterParameter=Local}"
                                      Margin="0,2"/>
                         <RadioButton Content="OpenAI API (online)" GroupName="Backend"
@@ -80,7 +80,7 @@
                 </GroupBox>
 
                 <!-- Model Selection (for local backend) -->
-                <GroupBox Header="Whisper Model" Margin="0,0,0,8">
+                <GroupBox Header="Speech Model" Margin="0,0,0,8">
                     <StackPanel Margin="4">
                         <Grid>
                             <Grid.ColumnDefinitions>
@@ -95,6 +95,10 @@
                                     Command="{Binding DownloadModelCommand}"
                                     Width="80"/>
                         </Grid>
+
+                        <TextBlock Text="{Binding SelectedModelInfo, Mode=OneWay}"
+                                   FontSize="11" Foreground="Gray" TextWrapping="Wrap"
+                                   Margin="0,4,0,0"/>
 
                         <!-- Download progress -->
                         <StackPanel Visibility="{Binding IsDownloading, Converter={StaticResource BoolToVis}}"

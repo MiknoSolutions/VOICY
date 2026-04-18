@@ -19,6 +19,7 @@ public class MainViewModel : ViewModelBase, IDisposable
     private readonly LocalWhisperService _localWhisper;
     private readonly OpenAiWhisperService _apiWhisper;
     private readonly LocalApiService _localApi;
+    private readonly SherpaOnnxService _sherpaOnnx;
     private readonly IServiceProvider _serviceProvider;
     private readonly Dispatcher _dispatcher;
 
@@ -37,6 +38,7 @@ public class MainViewModel : ViewModelBase, IDisposable
         LocalWhisperService localWhisper,
         OpenAiWhisperService apiWhisper,
         LocalApiService localApi,
+        SherpaOnnxService sherpaOnnx,
         IServiceProvider serviceProvider)
     {
         _audio = audio;
@@ -47,6 +49,7 @@ public class MainViewModel : ViewModelBase, IDisposable
         _localWhisper = localWhisper;
         _apiWhisper = apiWhisper;
         _localApi = localApi;
+        _sherpaOnnx = sherpaOnnx;
         _serviceProvider = serviceProvider;
         _dispatcher = Application.Current.Dispatcher;
 
@@ -425,10 +428,16 @@ public class MainViewModel : ViewModelBase, IDisposable
     {
         return _settings.Backend switch
         {
-            WhisperBackend.Local => _localWhisper,
+            WhisperBackend.Local => GetLocalRecognizer(),
             WhisperBackend.LocalApi => _localApi,
             _ => _apiWhisper
         };
+    }
+
+    private ISpeechRecognitionService GetLocalRecognizer()
+    {
+        var model = ModelCatalog.GetById(_settings.SelectedModelId);
+        return model?.Engine == ModelEngine.SherpaOnnx ? _sherpaOnnx : _localWhisper;
     }
 
     private void ApplySettings()
@@ -440,8 +449,17 @@ public class MainViewModel : ViewModelBase, IDisposable
 
         if (_settings.Backend == WhisperBackend.Local)
         {
-            if (System.IO.File.Exists(_settings.ModelFilePath))
+            _settings.MigrateIfNeeded();
+            var model = ModelCatalog.GetById(_settings.SelectedModelId);
+            if (model != null && model.Engine == ModelEngine.SherpaOnnx)
+            {
+                if (model.IsDownloaded())
+                    _sherpaOnnx.LoadModel(model);
+            }
+            else if (System.IO.File.Exists(_settings.ModelFilePath))
+            {
                 _localWhisper.LoadModel(_settings.ModelFilePath);
+            }
         }
         else if (_settings.Backend == WhisperBackend.Api)
         {

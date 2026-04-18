@@ -23,8 +23,9 @@ public class SettingsViewModel : ViewModelBase
         _modelDownload = modelDownload;
         _audioCapture = audioCapture;
         _settings = _settingsService.Load();
+        _settings.MigrateIfNeeded();
 
-        AvailableModels = new ObservableCollection<string>(_modelDownload.AvailableModelSizes);
+        AvailableModels = new ObservableCollection<ModelDefinition>(ModelCatalog.All);
         AvailableDevices = new ObservableCollection<string>(_audioCapture.GetAvailableDevices());
         Languages = new ObservableCollection<LanguageOption>(GetLanguages());
 
@@ -59,14 +60,17 @@ public class SettingsViewModel : ViewModelBase
         set => SetProperty(ref _apiKey, value);
     }
 
-    private string _selectedModel = "base";
-    public string SelectedModel
+    private ModelDefinition _selectedModel = ModelCatalog.GetByIdOrDefault(null);
+    public ModelDefinition SelectedModel
     {
         get => _selectedModel;
         set
         {
-            if (SetProperty(ref _selectedModel, value))
+            if (value != null && SetProperty(ref _selectedModel, value))
+            {
                 OnPropertyChanged(nameof(IsModelDownloaded));
+                OnPropertyChanged(nameof(SelectedModelInfo));
+            }
         }
     }
 
@@ -151,6 +155,18 @@ public class SettingsViewModel : ViewModelBase
 
     public bool IsModelDownloaded => _modelDownload.IsModelDownloaded(SelectedModel);
 
+    public string SelectedModelInfo
+    {
+        get
+        {
+            var m = SelectedModel;
+            var langs = string.Join(", ", m.Languages).ToUpperInvariant();
+            var engine = m.Engine == ModelEngine.WhisperNet ? "Whisper.net" : "SherpaOnnx";
+            var status = m.IsDownloaded() ? "Downloaded \u2713" : "Not downloaded";
+            return $"Engine: {engine} | Languages: {langs} | {status}";
+        }
+    }
+
     // Local API
     private string _localApiUrl = "http://localhost:8000";
     public string LocalApiUrl
@@ -167,7 +183,7 @@ public class SettingsViewModel : ViewModelBase
     }
 
     // Collections
-    public ObservableCollection<string> AvailableModels { get; }
+    public ObservableCollection<ModelDefinition> AvailableModels { get; }
     public ObservableCollection<string> AvailableDevices { get; }
     public ObservableCollection<LanguageOption> Languages { get; }
 
@@ -210,7 +226,9 @@ public class SettingsViewModel : ViewModelBase
     {
         _settings.Backend = Backend;
         _settings.ApiKey = ApiKey;
-        _settings.ModelSize = SelectedModel;
+        _settings.SelectedModelId = SelectedModel.Id;
+        _settings.ModelSize = SelectedModel.Id.StartsWith("whisper-")
+            ? SelectedModel.Id["whisper-".Length..] : SelectedModel.Id;
         _settings.Language = SelectedLanguage;
         _settings.MicrophoneDeviceIndex = SelectedDeviceIndex;
         _settings.Mode = Mode;
@@ -228,7 +246,7 @@ public class SettingsViewModel : ViewModelBase
     private async void DownloadModel()
     {
         IsDownloading = true;
-        DownloadStatus = $"Downloading {SelectedModel}...";
+        DownloadStatus = $"Downloading {SelectedModel.DisplayName}...";
         DownloadProgress = 0;
 
         try
@@ -236,13 +254,14 @@ public class SettingsViewModel : ViewModelBase
             var progress = new Progress<double>(p =>
             {
                 DownloadProgress = p;
-                DownloadStatus = $"Downloading {SelectedModel}... {p:F0}%";
+                DownloadStatus = $"Downloading {SelectedModel.DisplayName}... {p:F0}%";
             });
 
             await _modelDownload.DownloadModelAsync(SelectedModel, progress);
 
             DownloadStatus = "Download complete!";
             OnPropertyChanged(nameof(IsModelDownloaded));
+            OnPropertyChanged(nameof(SelectedModelInfo));
         }
         catch (Exception ex)
         {
@@ -258,7 +277,8 @@ public class SettingsViewModel : ViewModelBase
     {
         Backend = _settings.Backend;
         ApiKey = _settings.ApiKey;
-        SelectedModel = _settings.ModelSize;
+        SelectedModel = AvailableModels.FirstOrDefault(m => m.Id == _settings.SelectedModelId)
+                        ?? AvailableModels[1];
         SelectedLanguage = _settings.Language;
         SelectedDeviceIndex = _settings.MicrophoneDeviceIndex;
         Mode = _settings.Mode;

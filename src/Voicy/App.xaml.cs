@@ -65,6 +65,7 @@ public partial class App : Application
         services.AddSingleton<LocalWhisperService>();
         services.AddSingleton<OpenAiWhisperService>();
         services.AddSingleton<LocalApiService>();
+        services.AddSingleton<SherpaOnnxService>();
 
         // ViewModels
         services.AddSingleton<MainViewModel>();

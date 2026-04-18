@@ -7,6 +7,7 @@ public class AppSettings
     public WhisperBackend Backend { get; set; } = WhisperBackend.Local;
     public string ApiKey { get; set; } = string.Empty;
     public string ModelSize { get; set; } = "base";
+    public string SelectedModelId { get; set; } = "whisper-base";
     public string Language { get; set; } = "auto";
     public RecognitionMode Mode { get; set; } = RecognitionMode.Toggle;
 
@@ -31,4 +32,15 @@ public class AppSettings
 
     [JsonIgnore]
     public string ModelFilePath => System.IO.Path.Combine(ModelsDirectory, $"ggml-{ModelSize}.bin");
+
+    /// <summary>
+    /// Migrate old settings: if SelectedModelId is default but ModelSize was customized, fix it.
+    /// </summary>
+    public void MigrateIfNeeded()
+    {
+        if (SelectedModelId == "whisper-base" && ModelSize != "base")
+        {
+            SelectedModelId = $"whisper-{ModelSize}";
+        }
+    }
 }
