@@ -38,22 +38,42 @@ public sealed class SherpaOnnxService : ISpeechRecognitionService
             return originalDir;
         }
 
-        DiagnosticLogger.Log($"Non-ASCII path detected: {originalDir} — copying to temp");
-        // Use a stable temp path: %TEMP%/vesper-models/<model-id>
-        var tempBase = Path.Combine(Path.GetTempPath(), "vesper-models", model.Id);
-        if (!Directory.Exists(tempBase))
-            Directory.CreateDirectory(tempBase);
+        // Both the app directory and %TEMP% may contain non-ASCII chars
+        // (e.g. C:\Users\Mikołaj\...). Use C:\ProgramData which is always ASCII.
+        var safeRoot = GetAsciiSafeRoot();
+        var safeDir = Path.Combine(safeRoot, "vesper-models", model.Id);
+        DiagnosticLogger.Log($"Non-ASCII path detected: {originalDir} — copying to {safeDir}");
+
+        if (!Directory.Exists(safeDir))
+            Directory.CreateDirectory(safeDir);
 
         foreach (var file in model.Files)
         {
             var src = model.GetFilePath(file.RelativePath);
-            var dst = Path.Combine(tempBase, file.RelativePath);
+            var dst = Path.Combine(safeDir, file.RelativePath);
             if (!File.Exists(dst) || new FileInfo(dst).Length != new FileInfo(src).Length)
                 File.Copy(src, dst, overwrite: true);
         }
 
-        _safeCopyDir = tempBase;
-        return tempBase;
+        _safeCopyDir = safeDir;
+        return safeDir;
+    }
+
+    private static string GetAsciiSafeRoot()
+    {
+        // Try C:\ProgramData (always ASCII on Windows)
+        var programData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
+        if (!string.IsNullOrEmpty(programData) && !NeedsAsciiSafePath(programData))
+            return programData;
+
+        // Fallback: try TEMP anyway
+        var temp = Path.GetTempPath();
+        if (!NeedsAsciiSafePath(temp))
+            return temp;
+
+        // Last resort: root of system drive (e.g. C:\vesper-models)
+        var sysRoot = Path.GetPathRoot(Environment.SystemDirectory) ?? @"C:\";
+        return sysRoot;
     }
 
     public void LoadModel(ModelDefinition model)
