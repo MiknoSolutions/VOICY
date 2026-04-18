@@ -23,7 +23,7 @@ public class AppSettings
     public int VadMinSpeechMs { get; set; } = 300;
 
     [JsonIgnore]
-    public string ModelsDirectory => "models";
+    public string ModelsDirectory => System.IO.Path.Combine(AppContext.BaseDirectory, "models");
 
     [JsonIgnore]
     public string ModelFilePath => System.IO.Path.Combine(ModelsDirectory, $"ggml-{ModelSize}.bin");
