@@ -241,8 +241,9 @@ public sealed class GoogleCloudSpeechService : ISpeechRecognitionService
 
     private static string[] GetLanguageCodes(string? lang)
     {
+        // Chirp/Chirp 2 auto-detect language when no codes are specified
         if (string.IsNullOrEmpty(lang) || lang == "auto")
-            return ["en-US", "pl-PL"];
+            return [];
 
         return [MapLanguageCode(lang)];
     }
