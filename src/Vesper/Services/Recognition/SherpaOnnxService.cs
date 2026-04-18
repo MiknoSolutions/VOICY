@@ -21,18 +21,38 @@ public sealed class SherpaOnnxService : ISpeechRecognitionService
         _recognizer = null;
         _loadedModelId = null;
 
-        // Validate all model files exist before calling native code
+        // Validate all model files exist and are not truncated before calling native code
         foreach (var file in model.Files)
         {
             var path = model.GetFilePath(file.RelativePath);
             if (!File.Exists(path))
                 throw new FileNotFoundException(
                     $"Model file missing: {file.RelativePath}. Please re-download the model.", path);
+
+            var fileInfo = new FileInfo(path);
+            if (fileInfo.Length < 100)
+                throw new InvalidOperationException(
+                    $"Model file '{file.RelativePath}' appears corrupted (only {fileInfo.Length} bytes). " +
+                    $"Please delete the models/{model.Id} folder and re-download.");
         }
 
         var config = new OfflineRecognizerConfig();
+        config.FeatConfig.SampleRate = 16000;
+        config.FeatConfig.FeatureDim = 80;
         config.ModelConfig.Tokens = Path.Combine(model.ModelDirectory, "tokens.txt");
         config.ModelConfig.NumThreads = Math.Max(1, Environment.ProcessorCount / 2);
+        config.ModelConfig.Provider = "cpu";
+        config.ModelConfig.Debug = 0;
+        config.ModelConfig.ModelType = "";
+        config.ModelConfig.ModelingUnit = "";
+        config.ModelConfig.BpeVocab = "";
+        config.ModelConfig.TeleSpeechCtc = "";
+        config.DecodingMethod = "greedy_search";
+        config.MaxActivePaths = 4;
+        config.HotwordsFile = "";
+        config.HotwordsScore = 0;
+        config.RuleFsts = "";
+        config.RuleFars = "";
 
         switch (model.SherpaType)
         {
@@ -74,7 +94,9 @@ public sealed class SherpaOnnxService : ISpeechRecognitionService
     public async Task<string> TranscribeAsync(byte[] wavAudio, string language, CancellationToken ct = default)
     {
         if (_recognizer == null)
-            throw new InvalidOperationException("Model not loaded. Call LoadModel first.");
+            throw new InvalidOperationException(
+                "SherpaOnnx model failed to load. Check the status bar for details, " +
+                "or try switching to a Whisper model in Settings.");
 
         var recognizer = _recognizer;
 

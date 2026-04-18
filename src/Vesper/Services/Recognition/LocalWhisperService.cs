@@ -41,7 +41,9 @@ public sealed class LocalWhisperService : ISpeechRecognitionService
     public async Task<string> TranscribeAsync(byte[] wavAudio, string language, CancellationToken ct = default)
     {
         if (_factory == null)
-            throw new InvalidOperationException("Model not loaded. Call LoadModel first.");
+            throw new InvalidOperationException(
+                "Whisper model failed to load. Check the status bar for details, " +
+                "or try re-downloading the model in Settings.");
 
         var builder = _factory.CreateBuilder()
             .WithThreads(Environment.ProcessorCount > 1 ? Environment.ProcessorCount / 2 : 1);
