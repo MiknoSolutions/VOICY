@@ -43,10 +43,14 @@ public class SettingsViewModel : ViewModelBase
         set
         {
             if (SetProperty(ref _backend, value))
+            {
                 OnPropertyChanged(nameof(IsApiMode));
+                OnPropertyChanged(nameof(IsLocalApiMode));
+            }
         }
     }
     public bool IsApiMode => Backend == WhisperBackend.Api;
+    public bool IsLocalApiMode => Backend == WhisperBackend.LocalApi;
 
     private string _apiKey = string.Empty;
     public string ApiKey
@@ -147,6 +151,21 @@ public class SettingsViewModel : ViewModelBase
 
     public bool IsModelDownloaded => _modelDownload.IsModelDownloaded(SelectedModel);
 
+    // Local API
+    private string _localApiUrl = "http://localhost:8000";
+    public string LocalApiUrl
+    {
+        get => _localApiUrl;
+        set => SetProperty(ref _localApiUrl, value);
+    }
+
+    private string _localApiModelName = string.Empty;
+    public string LocalApiModelName
+    {
+        get => _localApiModelName;
+        set => SetProperty(ref _localApiModelName, value);
+    }
+
     // Collections
     public ObservableCollection<string> AvailableModels { get; }
     public ObservableCollection<string> AvailableDevices { get; }
@@ -199,6 +218,8 @@ public class SettingsViewModel : ViewModelBase
         _settings.HotkeyKey = _hotkeyKey;
         _settings.VadThresholdDb = (float)VadThresholdDb;
         _settings.VadSilenceMs = (int)VadSilenceMs;
+        _settings.LocalApiUrl = LocalApiUrl;
+        _settings.LocalApiModelName = LocalApiModelName;
 
         _settingsService.Save(_settings);
         Saved = true;
@@ -246,6 +267,8 @@ public class SettingsViewModel : ViewModelBase
         HotkeyDisplay = FormatHotkey(_hotkeyModifiers, _hotkeyKey);
         VadThresholdDb = _settings.VadThresholdDb;
         VadSilenceMs = _settings.VadSilenceMs;
+        LocalApiUrl = _settings.LocalApiUrl;
+        LocalApiModelName = _settings.LocalApiModelName;
     }
 
     private static string FormatHotkey(int modifiers, int key)

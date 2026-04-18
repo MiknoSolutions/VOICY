@@ -18,6 +18,7 @@ public class MainViewModel : ViewModelBase, IDisposable
     private readonly ISettingsService _settingsService;
     private readonly LocalWhisperService _localWhisper;
     private readonly OpenAiWhisperService _apiWhisper;
+    private readonly LocalApiService _localApi;
     private readonly IServiceProvider _serviceProvider;
     private readonly Dispatcher _dispatcher;
 
@@ -35,6 +36,7 @@ public class MainViewModel : ViewModelBase, IDisposable
         ISettingsService settingsService,
         LocalWhisperService localWhisper,
         OpenAiWhisperService apiWhisper,
+        LocalApiService localApi,
         IServiceProvider serviceProvider)
     {
         _audio = audio;
@@ -44,6 +46,7 @@ public class MainViewModel : ViewModelBase, IDisposable
         _settingsService = settingsService;
         _localWhisper = localWhisper;
         _apiWhisper = apiWhisper;
+        _localApi = localApi;
         _serviceProvider = serviceProvider;
         _dispatcher = Application.Current.Dispatcher;
 
@@ -420,9 +423,12 @@ public class MainViewModel : ViewModelBase, IDisposable
 
     private ISpeechRecognitionService GetRecognizer()
     {
-        return _settings.Backend == WhisperBackend.Local
-            ? _localWhisper
-            : _apiWhisper;
+        return _settings.Backend switch
+        {
+            WhisperBackend.Local => _localWhisper,
+            WhisperBackend.LocalApi => _localApi,
+            _ => _apiWhisper
+        };
     }
 
     private void ApplySettings()
@@ -437,9 +443,13 @@ public class MainViewModel : ViewModelBase, IDisposable
             if (System.IO.File.Exists(_settings.ModelFilePath))
                 _localWhisper.LoadModel(_settings.ModelFilePath);
         }
-        else
+        else if (_settings.Backend == WhisperBackend.Api)
         {
             _apiWhisper.SetApiKey(_settings.ApiKey);
+        }
+        else if (_settings.Backend == WhisperBackend.LocalApi)
+        {
+            _localApi.Configure(_settings.LocalApiUrl, _settings.LocalApiModelName);
         }
     }
 

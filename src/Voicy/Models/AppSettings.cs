@@ -10,6 +10,10 @@ public class AppSettings
     public string Language { get; set; } = "auto";
     public RecognitionMode Mode { get; set; } = RecognitionMode.Toggle;
 
+    // Local API server settings
+    public string LocalApiUrl { get; set; } = "http://localhost:8000";
+    public string LocalApiModelName { get; set; } = string.Empty;
+
     // Hotkey for Toggle / PushToTalk modes
     public int HotkeyModifiers { get; set; } = 0x02 | 0x04; // Ctrl + Shift
     public int HotkeyKey { get; set; } = 0x52; // R key

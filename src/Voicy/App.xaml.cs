@@ -64,6 +64,7 @@ public partial class App : Application
         services.AddSingleton<ITextInjectionService, ClipboardTextInjectionService>();
         services.AddSingleton<LocalWhisperService>();
         services.AddSingleton<OpenAiWhisperService>();
+        services.AddSingleton<LocalApiService>();
 
         // ViewModels
         services.AddSingleton<MainViewModel>();
