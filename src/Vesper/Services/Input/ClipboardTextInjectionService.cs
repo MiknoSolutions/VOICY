@@ -14,7 +14,7 @@ public sealed class ClipboardTextInjectionService : ITextInjectionService
         _lastForegroundWindow = NativeInterop.GetForegroundWindow();
     }
 
-    public void InjectText(string text)
+    public void InjectText(string text, bool sendEnter = false)
     {
         if (string.IsNullOrEmpty(text)) return;
 
@@ -52,6 +52,12 @@ public sealed class ClipboardTextInjectionService : ITextInjectionService
 
             // Send Ctrl+V to paste
             SendCtrlV();
+
+            if (sendEnter)
+            {
+                Thread.Sleep(50);
+                SendEnter();
+            }
         };
         timer.Start();
     }
@@ -97,6 +103,19 @@ public sealed class ClipboardTextInjectionService : ITextInjectionService
             new() { type = NativeInterop.INPUT_KEYBOARD, U = new() { ki = new() { wVk = NativeInterop.VK_V } } },
             new() { type = NativeInterop.INPUT_KEYBOARD, U = new() { ki = new() { wVk = NativeInterop.VK_V, dwFlags = NativeInterop.KEYEVENTF_KEYUP } } },
             new() { type = NativeInterop.INPUT_KEYBOARD, U = new() { ki = new() { wVk = NativeInterop.VK_LCONTROL, dwFlags = NativeInterop.KEYEVENTF_KEYUP } } },
+        };
+
+        NativeInterop.SendInput((uint)inputs.Length, inputs, size);
+    }
+
+    private static void SendEnter()
+    {
+        int size = Marshal.SizeOf<NativeInterop.INPUT>();
+
+        var inputs = new NativeInterop.INPUT[]
+        {
+            new() { type = NativeInterop.INPUT_KEYBOARD, U = new() { ki = new() { wVk = NativeInterop.VK_RETURN } } },
+            new() { type = NativeInterop.INPUT_KEYBOARD, U = new() { ki = new() { wVk = NativeInterop.VK_RETURN, dwFlags = NativeInterop.KEYEVENTF_KEYUP } } },
         };
 
         NativeInterop.SendInput((uint)inputs.Length, inputs, size);

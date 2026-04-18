@@ -12,17 +12,31 @@ public sealed class LowLevelKeyboardHookService : IGlobalHotkeyService
     private int _targetModifiers; // bitmask: 1=Alt, 2=Ctrl, 4=Shift, 8=Win
     private int _targetKey;
 
+    private int _target2Modifiers;
+    private int _target2Key;
+
     private bool _isKeyDown;
+    private bool _isKey2Down;
     private int _currentModifiers;
 
     public event EventHandler? HotkeyToggled;
     public event EventHandler? HotkeyPressed;
     public event EventHandler? HotkeyReleased;
 
+    public event EventHandler? Hotkey2Toggled;
+    public event EventHandler? Hotkey2Pressed;
+    public event EventHandler? Hotkey2Released;
+
     public void SetHotkey(int modifiers, int key)
     {
         _targetModifiers = modifiers;
         _targetKey = key;
+    }
+
+    public void SetHotkey2(int modifiers, int key)
+    {
+        _target2Modifiers = modifiers;
+        _target2Key = key;
     }
 
     public void Start()
@@ -73,11 +87,32 @@ public sealed class LowLevelKeyboardHookService : IGlobalHotkeyService
                     HotkeyReleased?.Invoke(this, EventArgs.Empty);
                 }
             }
-            else if (IsModifierKey(vkCode) && isUp && _isKeyDown)
+            else if (vkCode == _target2Key && _currentModifiers == _target2Modifiers && _target2Key != 0)
             {
-                // Modifier released while main key was held
-                _isKeyDown = false;
-                HotkeyReleased?.Invoke(this, EventArgs.Empty);
+                if (isDown && !_isKey2Down)
+                {
+                    _isKey2Down = true;
+                    Hotkey2Toggled?.Invoke(this, EventArgs.Empty);
+                    Hotkey2Pressed?.Invoke(this, EventArgs.Empty);
+                }
+                else if (isUp && _isKey2Down)
+                {
+                    _isKey2Down = false;
+                    Hotkey2Released?.Invoke(this, EventArgs.Empty);
+                }
+            }
+            else if (IsModifierKey(vkCode) && isUp)
+            {
+                if (_isKeyDown)
+                {
+                    _isKeyDown = false;
+                    HotkeyReleased?.Invoke(this, EventArgs.Empty);
+                }
+                if (_isKey2Down)
+                {
+                    _isKey2Down = false;
+                    Hotkey2Released?.Invoke(this, EventArgs.Empty);
+                }
             }
         }
 

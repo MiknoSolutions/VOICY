@@ -112,6 +112,38 @@ public class SettingsViewModel : ViewModelBase
         set => SetProperty(ref _isCapturingHotkey, value);
     }
 
+    // Second hotkey (recognition + Enter)
+    private string _hotkey2Display = "Ctrl+Shift+E";
+    public string Hotkey2Display
+    {
+        get => _hotkey2Display;
+        set => SetProperty(ref _hotkey2Display, value);
+    }
+
+    private int _hotkey2Modifiers = 0x02 | 0x04;
+    private int _hotkey2Key = 0x45;
+    private bool _isCapturingHotkey2;
+    public bool IsCapturingHotkey2
+    {
+        get => _isCapturingHotkey2;
+        set => SetProperty(ref _isCapturingHotkey2, value);
+    }
+
+    private bool _hotkey2Enabled;
+    public bool Hotkey2Enabled
+    {
+        get => _hotkey2Enabled;
+        set => SetProperty(ref _hotkey2Enabled, value);
+    }
+
+    // Auto-Enter after paste
+    private bool _autoEnterAfterPaste;
+    public bool AutoEnterAfterPaste
+    {
+        get => _autoEnterAfterPaste;
+        set => SetProperty(ref _autoEnterAfterPaste, value);
+    }
+
     // VAD — use double to match Slider.Value type (avoids TwoWay binding type mismatch)
     private double _vadThresholdDb = -30.0;
     public double VadThresholdDb
@@ -222,6 +254,31 @@ public class SettingsViewModel : ViewModelBase
         e.Handled = true;
     }
 
+    public void CaptureHotkey2(KeyEventArgs e)
+    {
+        if (!IsCapturingHotkey2) return;
+
+        var key = e.Key == Key.System ? e.SystemKey : e.Key;
+
+        if (key is Key.LeftCtrl or Key.RightCtrl or Key.LeftShift or Key.RightShift
+            or Key.LeftAlt or Key.RightAlt or Key.LWin or Key.RWin)
+            return;
+
+        int modifiers = 0;
+        if (Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl)) modifiers |= 0x02;
+        if (Keyboard.IsKeyDown(Key.LeftShift) || Keyboard.IsKeyDown(Key.RightShift)) modifiers |= 0x04;
+        if (Keyboard.IsKeyDown(Key.LeftAlt) || Keyboard.IsKeyDown(Key.RightAlt)) modifiers |= 0x01;
+
+        int vk = KeyInterop.VirtualKeyFromKey(key);
+
+        _hotkey2Modifiers = modifiers;
+        _hotkey2Key = vk;
+        Hotkey2Display = FormatHotkey(modifiers, vk);
+        IsCapturingHotkey2 = false;
+
+        e.Handled = true;
+    }
+
     private void Save()
     {
         _settings.Backend = Backend;
@@ -234,6 +291,10 @@ public class SettingsViewModel : ViewModelBase
         _settings.Mode = Mode;
         _settings.HotkeyModifiers = _hotkeyModifiers;
         _settings.HotkeyKey = _hotkeyKey;
+        _settings.Hotkey2Modifiers = _hotkey2Modifiers;
+        _settings.Hotkey2Key = _hotkey2Key;
+        _settings.Hotkey2Enabled = Hotkey2Enabled;
+        _settings.AutoEnterAfterPaste = AutoEnterAfterPaste;
         _settings.VadThresholdDb = (float)VadThresholdDb;
         _settings.VadSilenceMs = (int)VadSilenceMs;
         _settings.LocalApiUrl = LocalApiUrl;
@@ -285,6 +346,11 @@ public class SettingsViewModel : ViewModelBase
         _hotkeyModifiers = _settings.HotkeyModifiers;
         _hotkeyKey = _settings.HotkeyKey;
         HotkeyDisplay = FormatHotkey(_hotkeyModifiers, _hotkeyKey);
+        _hotkey2Modifiers = _settings.Hotkey2Modifiers;
+        _hotkey2Key = _settings.Hotkey2Key;
+        Hotkey2Display = FormatHotkey(_hotkey2Modifiers, _hotkey2Key);
+        Hotkey2Enabled = _settings.Hotkey2Enabled;
+        AutoEnterAfterPaste = _settings.AutoEnterAfterPaste;
         VadThresholdDb = _settings.VadThresholdDb;
         VadSilenceMs = _settings.VadSilenceMs;
         LocalApiUrl = _settings.LocalApiUrl;

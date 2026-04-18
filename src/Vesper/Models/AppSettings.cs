@@ -19,6 +19,14 @@ public class AppSettings
     public int HotkeyModifiers { get; set; } = 0x02 | 0x04; // Ctrl + Shift
     public int HotkeyKey { get; set; } = 0x52; // R key
 
+    // Second hotkey — recognition + Enter after paste
+    public int Hotkey2Modifiers { get; set; } = 0x02 | 0x04; // Ctrl + Shift
+    public int Hotkey2Key { get; set; } = 0x45; // E key
+    public bool Hotkey2Enabled { get; set; } = false;
+
+    // Auto-press Enter after pasting text
+    public bool AutoEnterAfterPaste { get; set; } = false;
+
     // Audio
     public int MicrophoneDeviceIndex { get; set; } = 0;
 

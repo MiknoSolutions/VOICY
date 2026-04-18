@@ -25,6 +25,7 @@ public class MainViewModel : ViewModelBase, IDisposable
 
     private AppSettings _settings;
     private bool _isToggleActive;
+    private bool _forceEnter; // true when triggered via second hotkey
     private CancellationTokenSource? _cts;
     private DispatcherTimer? _streamingTimer;
     private bool _isStreamingTranscribing;
@@ -62,6 +63,9 @@ public class MainViewModel : ViewModelBase, IDisposable
         _hotkey.HotkeyToggled += OnHotkeyToggled;
         _hotkey.HotkeyPressed += OnHotkeyPressed;
         _hotkey.HotkeyReleased += OnHotkeyReleased;
+        _hotkey.Hotkey2Toggled += OnHotkey2Toggled;
+        _hotkey.Hotkey2Pressed += OnHotkey2Pressed;
+        _hotkey.Hotkey2Released += OnHotkey2Released;
         _vad.SpeechEnded += OnSpeechEnded;
     }
 
@@ -222,6 +226,7 @@ public class MainViewModel : ViewModelBase, IDisposable
             if (!_isToggleActive)
             {
                 _isToggleActive = true;
+                _forceEnter = false;
                 StartRecording();
             }
             else
@@ -237,10 +242,51 @@ public class MainViewModel : ViewModelBase, IDisposable
         if (CurrentMode != RecognitionMode.PushToTalk) return;
 
         _textInjection.CaptureForegroundWindow();
+        _forceEnter = false;
         _dispatcher.Invoke(() => StartRecording());
     }
 
     private void OnHotkeyReleased(object? sender, EventArgs e)
+    {
+        if (CurrentMode != RecognitionMode.PushToTalk) return;
+
+        _dispatcher.Invoke(() => _ = StopAndTranscribeAsync());
+    }
+
+    // ── Second Hotkey (recognition + Enter) ──
+
+    private void OnHotkey2Toggled(object? sender, EventArgs e)
+    {
+        if (CurrentMode != RecognitionMode.Toggle) return;
+
+        _textInjection.CaptureForegroundWindow();
+
+        _dispatcher.Invoke(() =>
+        {
+            if (!_isToggleActive)
+            {
+                _isToggleActive = true;
+                _forceEnter = true;
+                StartRecording();
+            }
+            else
+            {
+                _isToggleActive = false;
+                _ = StopAndTranscribeAsync();
+            }
+        });
+    }
+
+    private void OnHotkey2Pressed(object? sender, EventArgs e)
+    {
+        if (CurrentMode != RecognitionMode.PushToTalk) return;
+
+        _textInjection.CaptureForegroundWindow();
+        _forceEnter = true;
+        _dispatcher.Invoke(() => StartRecording());
+    }
+
+    private void OnHotkey2Released(object? sender, EventArgs e)
     {
         if (CurrentMode != RecognitionMode.PushToTalk) return;
 
@@ -400,7 +446,8 @@ public class MainViewModel : ViewModelBase, IDisposable
             if (!string.IsNullOrWhiteSpace(text))
             {
                 LastTranscription = text;
-                _textInjection.InjectText(text);
+                bool shouldEnter = _forceEnter || _settings.AutoEnterAfterPaste;
+                _textInjection.InjectText(text, shouldEnter);
                 StatusText = "Done — text pasted";
             }
             else
@@ -444,6 +491,10 @@ public class MainViewModel : ViewModelBase, IDisposable
     {
         CurrentMode = _settings.Mode;
         _hotkey.SetHotkey(_settings.HotkeyModifiers, _settings.HotkeyKey);
+        if (_settings.Hotkey2Enabled)
+            _hotkey.SetHotkey2(_settings.Hotkey2Modifiers, _settings.Hotkey2Key);
+        else
+            _hotkey.SetHotkey2(0, 0);
         _audio.SetDevice(_settings.MicrophoneDeviceIndex);
         HotkeyDisplay = FormatHotkey(_settings.HotkeyModifiers, _settings.HotkeyKey);
 
@@ -537,6 +588,9 @@ public class MainViewModel : ViewModelBase, IDisposable
         _hotkey.HotkeyToggled -= OnHotkeyToggled;
         _hotkey.HotkeyPressed -= OnHotkeyPressed;
         _hotkey.HotkeyReleased -= OnHotkeyReleased;
+        _hotkey.Hotkey2Toggled -= OnHotkey2Toggled;
+        _hotkey.Hotkey2Pressed -= OnHotkey2Pressed;
+        _hotkey.Hotkey2Released -= OnHotkey2Released;
         _vad.SpeechEnded -= OnSpeechEnded;
         _hotkey.Stop();
     }

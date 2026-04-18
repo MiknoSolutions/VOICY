@@ -103,4 +103,5 @@ public static class NativeInterop
     public const ushort VK_LMENU = 0xA4;  // Left Alt
     public const ushort VK_RMENU = 0xA5;  // Right Alt
     public const ushort VK_V = 0x56;
+    public const ushort VK_RETURN = 0x0D;
 }

@@ -138,6 +138,30 @@
                         </Grid>
                         <TextBlock Text="Click 'Set', then press desired key combination"
                                    FontSize="11" Foreground="Gray" Margin="0,2,0,0"/>
+
+                        <!-- Auto-Enter after paste -->
+                        <CheckBox Content="Auto-press Enter after pasting text"
+                                  IsChecked="{Binding AutoEnterAfterPaste}"
+                                  Margin="0,8,0,0"/>
+
+                        <!-- Second hotkey -->
+                        <CheckBox Content="Enable second hotkey (recognition + Enter)"
+                                  IsChecked="{Binding Hotkey2Enabled}"
+                                  Margin="0,8,0,2"/>
+                        <Grid Margin="0,2,0,0"
+                              IsEnabled="{Binding Hotkey2Enabled}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBox Grid.Column="0" Text="{Binding Hotkey2Display, Mode=OneWay}"
+                                     IsReadOnly="True" Margin="0,0,8,0"/>
+                            <Button Grid.Column="1"
+                                    Content="{Binding IsCapturingHotkey2, Converter={StaticResource BoolToCapture}}"
+                                    Click="CaptureHotkey2_Click" Width="80"/>
+                        </Grid>
+                        <TextBlock Text="This hotkey always sends Enter after pasting, regardless of the checkbox above"
+                                   FontSize="11" Foreground="Gray" TextWrapping="Wrap" Margin="0,2,0,0"/>
                     </StackPanel>
                 </GroupBox>
 

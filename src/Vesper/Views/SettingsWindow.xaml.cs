@@ -24,6 +24,7 @@ public partial class SettingsWindow : Window
     private void Window_KeyDown(object sender, KeyEventArgs e)
     {
         ViewModel.CaptureHotkey(e);
+        ViewModel.CaptureHotkey2(e);
     }
 
     private void ApiKeyBox_PasswordChanged(object sender, RoutedEventArgs e)
@@ -34,6 +35,11 @@ public partial class SettingsWindow : Window
     private void CaptureHotkey_Click(object sender, RoutedEventArgs e)
     {
         ViewModel.IsCapturingHotkey = !ViewModel.IsCapturingHotkey;
+    }
+
+    private void CaptureHotkey2_Click(object sender, RoutedEventArgs e)
+    {
+        ViewModel.IsCapturingHotkey2 = !ViewModel.IsCapturingHotkey2;
     }
 
     private void Save_Click(object sender, RoutedEventArgs e)
