@@ -19,58 +19,37 @@ public sealed class ClipboardTextInjectionService : ITextInjectionService
 
         var targetWindow = _lastForegroundWindow;
 
-        var thread = new Thread(() => InjectOnStaThread(text, targetWindow));
-        thread.SetApartmentState(ApartmentState.STA);
-        thread.Start();
-        thread.Join(TimeSpan.FromSeconds(5));
-    }
-
-    private static void InjectOnStaThread(string text, IntPtr targetWindow)
-    {
-        // Save current clipboard
-        string? previousText = null;
-        try
+        // Step 1: Set clipboard on the WPF dispatcher thread (has message pump)
+        Application.Current.Dispatcher.Invoke(() =>
         {
-            if (Clipboard.ContainsText())
-                previousText = Clipboard.GetText();
-        }
-        catch { }
+            try { Clipboard.SetText(text); }
+            catch { /* clipboard locked */ }
+        });
 
-        try
+        // Step 2: Focus target window and paste on a background thread
+        // (to avoid blocking the UI with Thread.Sleep)
+        Task.Run(() =>
         {
-            // Forcefully restore focus to the target window
-            FocusWindow(targetWindow);
-
-            // Release any held modifier keys (from hotkey combo) before pasting
-            ReleaseAllModifiers();
-            Thread.Sleep(30);
-
-            Clipboard.SetText(text);
-            Thread.Sleep(50);
-            SendCtrlV();
-            Thread.Sleep(100);
-        }
-        finally
-        {
-            // Best-effort restore clipboard
             try
             {
-                if (previousText != null)
-                {
-                    Thread.Sleep(200);
-                    Clipboard.SetText(previousText);
-                }
+                // Release modifier keys first (hotkey combo ghost state)
+                ReleaseAllModifiers();
+                Thread.Sleep(50);
+
+                // Focus the target window
+                FocusWindow(targetWindow);
+
+                // Send Ctrl+V
+                SendCtrlV();
             }
-            catch { }
-        }
+            catch { /* best effort */ }
+        });
     }
 
     private static void FocusWindow(IntPtr targetWindow)
     {
         if (targetWindow == IntPtr.Zero) return;
 
-        // Attach our thread's input to the target window's thread
-        // so SetForegroundWindow works even when we're not foreground
         var currentThreadId = NativeInterop.GetCurrentThreadId();
         var targetThreadId = NativeInterop.GetWindowThreadProcessId(targetWindow, out _);
 
@@ -80,8 +59,8 @@ public sealed class ClipboardTextInjectionService : ITextInjectionService
 
         try
         {
-            NativeInterop.BringWindowToTop(targetWindow);
             NativeInterop.SetForegroundWindow(targetWindow);
+            NativeInterop.BringWindowToTop(targetWindow);
         }
         finally
         {
@@ -89,23 +68,18 @@ public sealed class ClipboardTextInjectionService : ITextInjectionService
                 NativeInterop.AttachThreadInput(currentThreadId, targetThreadId, false);
         }
 
-        // Give the OS time to actually switch focus
-        Thread.Sleep(150);
+        Thread.Sleep(200);
     }
 
     private static void ReleaseAllModifiers()
     {
         int size = Marshal.SizeOf<NativeInterop.INPUT>();
 
-        // Release Ctrl, Shift, Alt (both sides) to clear ghost key state
         ushort[] modifiers =
         [
-            NativeInterop.VK_LCONTROL,
-            NativeInterop.VK_RCONTROL,
-            NativeInterop.VK_LSHIFT,
-            NativeInterop.VK_RSHIFT,
-            NativeInterop.VK_LMENU,
-            NativeInterop.VK_RMENU,
+            NativeInterop.VK_LCONTROL, NativeInterop.VK_RCONTROL,
+            NativeInterop.VK_LSHIFT,   NativeInterop.VK_RSHIFT,
+            NativeInterop.VK_LMENU,    NativeInterop.VK_RMENU,
         ];
 
         var inputs = new NativeInterop.INPUT[modifiers.Length];
