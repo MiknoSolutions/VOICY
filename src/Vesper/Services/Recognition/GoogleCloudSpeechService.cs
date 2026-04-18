@@ -12,6 +12,7 @@ public sealed class GoogleCloudSpeechService : ISpeechRecognitionService
     private string _projectId = string.Empty;
     private string _credentialsPath = string.Empty;
     private string _model = "chirp_2";
+    private string _location = "us-central1";
 
     // Streaming state
     private SpeechClient.StreamingRecognizeStream? _activeStream;
@@ -22,7 +23,7 @@ public sealed class GoogleCloudSpeechService : ISpeechRecognitionService
 
     public event EventHandler<string>? StreamingResultReceived;
 
-    private string RecognizerName => $"projects/{_projectId}/locations/global/recognizers/_";
+    private string RecognizerName => $"projects/{_projectId}/locations/{_location}/recognizers/_";
 
     public bool IsAvailable => _client != null && !string.IsNullOrEmpty(_projectId);
     public bool IsStreaming => _activeStream != null;
@@ -31,6 +32,9 @@ public sealed class GoogleCloudSpeechService : ISpeechRecognitionService
     {
         _credentialsPath = credentialsPath;
         _model = string.IsNullOrWhiteSpace(model) ? "chirp_2" : model;
+
+        // Chirp models require us-central1; standard models use global
+        _location = _model.StartsWith("chirp") ? "us-central1" : "global";
 
         if (string.IsNullOrWhiteSpace(projectId))
             _projectId = ExtractProjectIdFromCredentials(credentialsPath);
@@ -43,12 +47,17 @@ public sealed class GoogleCloudSpeechService : ISpeechRecognitionService
             return;
         }
 
+        var endpoint = _location == "global"
+            ? SpeechClient.DefaultEndpoint.ToString()
+            : $"{_location}-speech.googleapis.com";
+
         _client = new SpeechClientBuilder
         {
-            CredentialsPath = credentialsPath
+            CredentialsPath = credentialsPath,
+            Endpoint = _location == "global" ? null : $"{_location}-speech.googleapis.com:443"
         }.Build();
 
-        DiagnosticLogger.Log($"GoogleCloud: configured, project={_projectId}, model={_model}");
+        DiagnosticLogger.Log($"GoogleCloud: configured, project={_projectId}, model={_model}, location={_location}");
     }
 
     // ── Batch Recognition ──────────────────────────────────────────
@@ -73,12 +82,21 @@ public sealed class GoogleCloudSpeechService : ISpeechRecognitionService
             Content = ByteString.CopyFrom(wavAudio)
         };
 
-        var response = await _client.RecognizeAsync(request, ct);
+        try
+        {
+            var response = await _client.RecognizeAsync(request, ct);
 
-        return string.Join(" ", response.Results
-            .SelectMany(r => r.Alternatives)
-            .Select(a => a.Transcript))
-            .Trim();
+            return string.Join(" ", response.Results
+                .SelectMany(r => r.Alternatives)
+                .Select(a => a.Transcript))
+                .Trim();
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLogger.Log($"GoogleCloud TranscribeAsync error: {ex.Message}");
+            DiagnosticLogger.Log($"  Recognizer: {RecognizerName}, Model: {_model}, Lang: {MapLanguageCode(language)}");
+            throw;
+        }
     }
 
     // ── Streaming Recognition ──────────────────────────────────────
