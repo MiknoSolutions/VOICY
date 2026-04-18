@@ -9,8 +9,47 @@ public sealed class SherpaOnnxService : ISpeechRecognitionService
 {
     private OfflineRecognizer? _recognizer;
     private string? _loadedModelId;
+    private string? _safeCopyDir; // temp dir used when original path has non-ASCII chars
 
     public bool IsAvailable => _recognizer != null;
+
+    /// <summary>
+    /// SherpaOnnx marshals file paths as ANSI (LPStr). Non-ASCII characters
+    /// in the path (e.g. ł, ń, ö) get corrupted, causing the native library
+    /// to fail loading the model. When this happens, copy model files to a
+    /// temp directory with an ASCII-only path.
+    /// </summary>
+    private static bool NeedsAsciiSafePath(string path)
+    {
+        foreach (var c in path)
+        {
+            if (c > 127) return true;
+        }
+        return false;
+    }
+
+    private string EnsureAsciiSafePath(ModelDefinition model)
+    {
+        var originalDir = model.ModelDirectory;
+        if (!NeedsAsciiSafePath(originalDir))
+            return originalDir;
+
+        // Use a stable temp path: %TEMP%/vesper-models/<model-id>
+        var tempBase = Path.Combine(Path.GetTempPath(), "vesper-models", model.Id);
+        if (!Directory.Exists(tempBase))
+            Directory.CreateDirectory(tempBase);
+
+        foreach (var file in model.Files)
+        {
+            var src = model.GetFilePath(file.RelativePath);
+            var dst = Path.Combine(tempBase, file.RelativePath);
+            if (!File.Exists(dst) || new FileInfo(dst).Length != new FileInfo(src).Length)
+                File.Copy(src, dst, overwrite: true);
+        }
+
+        _safeCopyDir = tempBase;
+        return tempBase;
+    }
 
     public void LoadModel(ModelDefinition model)
     {
@@ -37,9 +76,10 @@ public sealed class SherpaOnnxService : ISpeechRecognitionService
         }
 
         var config = new OfflineRecognizerConfig();
+        var modelDir = EnsureAsciiSafePath(model);
         config.FeatConfig.SampleRate = 16000;
         config.FeatConfig.FeatureDim = 80;
-        config.ModelConfig.Tokens = Path.Combine(model.ModelDirectory, "tokens.txt");
+        config.ModelConfig.Tokens = Path.Combine(modelDir, "tokens.txt");
         config.ModelConfig.NumThreads = Math.Max(1, Environment.ProcessorCount / 2);
         config.ModelConfig.Provider = "cpu";
         config.ModelConfig.Debug = 0;
@@ -57,15 +97,14 @@ public sealed class SherpaOnnxService : ISpeechRecognitionService
         switch (model.SherpaType)
         {
             case SherpaModelType.Moonshine:
-                var dir = model.ModelDirectory;
-                config.ModelConfig.Moonshine.Preprocessor = Path.Combine(dir, "preprocess.onnx");
-                config.ModelConfig.Moonshine.Encoder = Path.Combine(dir, "encode.int8.onnx");
-                config.ModelConfig.Moonshine.UncachedDecoder = Path.Combine(dir, "uncached_decode.int8.onnx");
-                config.ModelConfig.Moonshine.CachedDecoder = Path.Combine(dir, "cached_decode.int8.onnx");
+                config.ModelConfig.Moonshine.Preprocessor = Path.Combine(modelDir, "preprocess.onnx");
+                config.ModelConfig.Moonshine.Encoder = Path.Combine(modelDir, "encode.int8.onnx");
+                config.ModelConfig.Moonshine.UncachedDecoder = Path.Combine(modelDir, "uncached_decode.int8.onnx");
+                config.ModelConfig.Moonshine.CachedDecoder = Path.Combine(modelDir, "cached_decode.int8.onnx");
                 break;
 
             case SherpaModelType.SenseVoice:
-                config.ModelConfig.SenseVoice.Model = Path.Combine(model.ModelDirectory, "model.int8.onnx");
+                config.ModelConfig.SenseVoice.Model = Path.Combine(modelDir, "model.int8.onnx");
                 config.ModelConfig.SenseVoice.UseInverseTextNormalization = 1;
                 break;
 
