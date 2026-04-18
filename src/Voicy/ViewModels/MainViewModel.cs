@@ -152,17 +152,28 @@ public class MainViewModel : ViewModelBase, IDisposable
 
     private void OpenSettings()
     {
-        var settingsVm = new SettingsViewModel(
-            _settingsService,
-            (IModelDownloadService)_serviceProvider.GetService(typeof(IModelDownloadService))!,
-            _audio);
-
-        var settingsWindow = new Views.SettingsWindow(settingsVm);
-        settingsWindow.Owner = Application.Current.MainWindow;
-
-        if (settingsWindow.ShowDialog() == true)
+        try
         {
-            ReloadSettings();
+            var settingsVm = new SettingsViewModel(
+                _settingsService,
+                (IModelDownloadService)_serviceProvider.GetService(typeof(IModelDownloadService))!,
+                _audio);
+
+            var settingsWindow = new Views.SettingsWindow(settingsVm);
+
+            var mainWindow = Application.Current.MainWindow;
+            if (mainWindow != null && mainWindow.IsVisible)
+                settingsWindow.Owner = mainWindow;
+
+            if (settingsWindow.ShowDialog() == true)
+            {
+                ReloadSettings();
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Could not open settings:\n{ex.Message}", "VOICY — Error",
+                MessageBoxButton.OK, MessageBoxImage.Error);
         }
     }
 

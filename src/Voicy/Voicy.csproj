@@ -9,6 +9,7 @@
     <AssemblyName>Voicy</AssemblyName>
     <RootNamespace>Voicy</RootNamespace>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <ApplicationIcon>Resources\voicy.ico</ApplicationIcon>
 
     <!-- Publishing -->
     <PublishSingleFile>true</PublishSingleFile>

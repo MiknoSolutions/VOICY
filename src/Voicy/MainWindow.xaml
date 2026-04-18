@@ -1,31 +1,17 @@
 ﻿<Window x:Class="Voicy.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:tb="http://www.hardcodet.net/taskbar"
         xmlns:helpers="clr-namespace:Voicy.Helpers"
         Title="VOICY" Height="320" Width="380"
         WindowStartupLocation="CenterScreen"
         ResizeMode="CanMinimize"
+        Icon="Resources/voicy.ico"
         StateChanged="Window_StateChanged"
         Closing="Window_Closing">
 
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
         <helpers:BoolToStatusColorConverter x:Key="BoolToColor"/>
-
-        <!-- Keep tray icon outside visual tree so it remains active when window is hidden. -->
-        <tb:TaskbarIcon x:Key="TrayIcon"
-                        ToolTipText="VOICY"
-                        Visibility="Visible">
-            <tb:TaskbarIcon.ContextMenu>
-                <ContextMenu>
-                    <MenuItem Header="Show" Click="TrayShow_Click"/>
-                    <MenuItem Header="Settings" Click="TraySettings_Click"/>
-                    <Separator/>
-                    <MenuItem Header="Exit" Click="TrayExit_Click"/>
-                </ContextMenu>
-            </tb:TaskbarIcon.ContextMenu>
-        </tb:TaskbarIcon>
     </Window.Resources>
 
     <Grid Margin="16">

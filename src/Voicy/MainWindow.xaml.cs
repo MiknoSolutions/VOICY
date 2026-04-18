@@ -1,7 +1,8 @@
 ﻿using System.ComponentModel;
-using Hardcodet.Wpf.TaskbarNotification;
+using System.IO;
 using System.Windows;
 using System.Windows.Controls;
+using Hardcodet.Wpf.TaskbarNotification;
 using Voicy.Models;
 using Voicy.ViewModels;
 
@@ -10,16 +11,51 @@ namespace Voicy;
 public partial class MainWindow : Window
 {
     private MainViewModel ViewModel => (MainViewModel)DataContext;
-    private readonly TaskbarIcon _trayIcon;
+    private TaskbarIcon? _trayIcon;
     private bool _forceClose;
 
     public MainWindow(MainViewModel viewModel)
     {
         DataContext = viewModel;
         InitializeComponent();
-        _trayIcon = (TaskbarIcon)FindResource("TrayIcon");
-        _trayIcon.TrayMouseDoubleClick += TrayIcon_TrayMouseDoubleClick;
+        CreateTrayIcon();
         viewModel.Start();
+    }
+
+    private void CreateTrayIcon()
+    {
+        try
+        {
+            _trayIcon = new TaskbarIcon();
+            _trayIcon.ToolTipText = "VOICY";
+
+            // Load icon from embedded resource
+            var iconUri = new Uri("pack://application:,,,/Resources/voicy.ico", UriKind.Absolute);
+            var streamInfo = Application.GetResourceStream(iconUri);
+            if (streamInfo != null)
+            {
+                _trayIcon.Icon = new System.Drawing.Icon(streamInfo.Stream);
+            }
+
+            // Context menu
+            var showItem = new MenuItem { Header = "Show" };
+            showItem.Click += TrayShow_Click;
+            var settingsItem = new MenuItem { Header = "Settings" };
+            settingsItem.Click += TraySettings_Click;
+            var exitItem = new MenuItem { Header = "Exit" };
+            exitItem.Click += TrayExit_Click;
+
+            _trayIcon.ContextMenu = new ContextMenu
+            {
+                Items = { showItem, settingsItem, new Separator(), exitItem }
+            };
+
+            _trayIcon.TrayMouseDoubleClick += TrayIcon_TrayMouseDoubleClick;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Failed to create tray icon: {ex.Message}");
+        }
     }
 
     private void Window_StateChanged(object sender, EventArgs e)
@@ -40,7 +76,7 @@ public partial class MainWindow : Window
         }
 
         ViewModel.Dispose();
-        _trayIcon.Dispose();
+        _trayIcon?.Dispose();
     }
 
     private void MinimizeToTray_Click(object sender, RoutedEventArgs e)
